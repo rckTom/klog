@@ -158,11 +158,13 @@ def generate_medium(medium):
         print('File does not exist: %s' % real_file)
         quit()
 
-    copyfile(real_file, os.path.join(target_media, os.path.basename(real_file)))
+    base = os.path.basename(real_file)
+
+    copyfile(real_file, os.path.join(target_media, base))
 
     if options == '':
         return filename
-    return '%s, %s' % (filename, options)
+    return '%s, %s' % (base, options)
 
 def generate_entry(entry):
     date, topic, content, media = entry
