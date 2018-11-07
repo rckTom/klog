@@ -16,6 +16,17 @@ details.
 """
 
 from datetime import datetime
+from jinja2 import Template
+from os.path import join, isfile, split
+from os import makedirs, remove
+from os.path import splitext, dirname
+
+dokuwiki_log_template = Template(
+"""===== {{ topic }}: {{ date }} =====
+{{ content }}
+{{ media }}
+""")
+image_url = 'https://raw.githubusercontent.com/Binary-Kitchen/kitchenlog/master/media/'
 
 
 def parse_defval(value):
@@ -31,6 +42,17 @@ def parse_ymd(value):
     return value
 
 
+def parse_medium(value):
+    value = value.split(', ')
+
+    if len(value) == 1:
+        return value[0], None
+    elif len(value) == 2:
+        return value[0], value[1]
+    else:
+        raise ValueError('Unknown media format: %s' % value)
+
+
 def format_defval(value):
     if not value:
         return 'None'
@@ -43,41 +65,112 @@ def format_ymd(dt):
     return dt.strftime('%Y-%m-%d')
 
 
-class LogEntry:
-    def __init__(self, log_entry):
-        self.headers = dict()
-        self.headers['MEDIA'] = list()
+def format_german_date(dt, print_year):
+    format = '%A, %d. %B'
+    if print_year:
+        format += ' %Y'
+    return dt.strftime(format)
 
-        headers, self.content = log_entry.split('\n\n', 1)
+
+def generate_wikidate(begin, end):
+    if end:
+        begin = format_german_date(begin, False)
+        end = format_german_date(end, True)
+        return '%s bis %s' % (begin, end)
+    return format_german_date(begin, True)
+
+
+def generate_wikimedia(media):
+    ret = ''
+    for image, options in media:
+        ret += '{{ %s/%s }}\n' % (image_url, image)
+    return ret
+
+
+class LogEntry:
+    def __init__(self, filename):
+        self._filename = filename
+
+        path, base = split(filename)
+        base = splitext(base)[0]
+        day, self._no = [int(x) for x in base.split('-')]
+
+        path, month = split(path)
+        path, year = split(path)
+
+        self._path = path
+
+        self._filename_date = parse_ymd('%s-%s-%s' % (year, month, day))
+
+        with open(filename, 'r') as f:
+            log_entry = f.read()
+
+        self._media = list()
+        self._headers = dict()
+        self._dirty = False
+
+        headers, self._content = log_entry.split('\n\n', 1)
         headers = headers.split('\n')
         headers = [header.split(': ', 1) for header in headers]
 
         for key, value in headers:
             if key == 'BEGIN':
-                self.headers[key] = parse_ymd(value)
+                self._begin = parse_ymd(value)
             elif key == 'END':
-                self.headers[key] = parse_ymd(value)
+                self._end = parse_ymd(value)
             elif key == 'MEDIA':
-                self.headers[key].append(value)
+                self._media.append(parse_medium(value))
             else:
-                self.headers[key] = parse_defval(value)
+                self._headers[key] = parse_defval(value)
+
+        if self.dirty:
+            print('Warning: Loaded dirty file %s' % filename)
+
+    @property
+    def dirty(self):
+        return self._dirty or (self._begin != self._filename_date)
+
+    @property
+    def fname(self):
+        return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._no
+
+    def save(self):
+        if self._begin != self._filename_date:
+            remove(self._filename)
+            self._no = 0
+            while isfile(join(self._path, self.fname)):
+                self._no += 1
+
+        with open(join(self._path, self.fname), 'w') as f:
+            f.write(str(self))
+
 
     def __str__(self):
         ret = ''
-        ret += 'BEGIN: %s\n' % format_ymd(self.headers['BEGIN'])
-        ret += 'END: %s\n' % format_ymd(self.headers['END'])
-        ret += 'TOPIC: %s\n' % format_defval(self.headers['TOPIC'])
-        ret += 'APPENDIX: %s\n' % format_defval(self.headers['APPENDIX'])
+        ret += 'BEGIN: %s\n' % format_ymd(self._begin)
+        ret += 'END: %s\n' % format_ymd(self._end)
+        ret += 'TOPIC: %s\n' % format_defval(self._headers['TOPIC'])
+        ret += 'APPENDIX: %s\n' % format_defval(self._headers['APPENDIX'])
+        for filename, options in self._media:
+            ret += 'MEDIA: %s' % filename
+            if options:
+                ret += ', %s' % options
+            ret += '\n'
         ret += '\n'
-        ret += self.content
+        ret += self._content
 
         return ret
 
-    @staticmethod
-    def from_file(filename):
-        with open(filename, 'r') as f:
-            return LogEntry(f.read())
+    def generate_dokuwiki(self):
+        return dokuwiki_log_template.render(date = generate_wikidate(self._begin, self._end),
+                                            topic = self._headers['TOPIC'],
+                                            appendix = self._headers['APPENDIX'],
+                                            content = self._content,
+                                            media = generate_wikimedia(self._media))
 
-    def to_file(self, filename):
-        with open(filename, 'w') as f:
-            f.write(str(self))
+    def to_dokuwiki(self, target_directory):
+        target = join(target_directory, 'entry', self.fname)
+        makedirs(dirname(target), exist_ok=True)
+
+        with open(target, 'w') as f:
+            f.write(self.generate_dokuwiki())
