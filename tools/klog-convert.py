@@ -21,7 +21,6 @@ import dateparser
 import glob
 import re
 import os
-import sys
 
 from shutil import copyfile
 
