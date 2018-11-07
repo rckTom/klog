@@ -3,9 +3,18 @@
 """
 klog-convert - Convert the Dokuwiki kitchenlog sites to an abstract format
 
-Author: Ralf Ramsauer <ralf@binary-kitchen.de>
+Copyright (c) Binary Kitchen e.V., 2018
 
-Licensed under the terms and conditions of the GPLv2.
+Author:
+  Ralf Ramsauer <ralf@binary-kitchen.de>
+
+This work is licensed under the terms of the GNU GPL, version 2.  See
+the LICENSE file in the top-level directory.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
 """
 
 import dateparser
