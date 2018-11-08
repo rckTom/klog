@@ -179,7 +179,6 @@ class LogEntry:
         with open(join(self._path, self.fname), 'w') as f:
             f.write(str(self))
 
-
     def __str__(self):
         ret = ''
         ret += 'BEGIN: %s\n' % format_ymd(self._begin)
