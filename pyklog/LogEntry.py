@@ -28,6 +28,16 @@ dokuwiki_log_template = Template(
 """)
 image_url = 'https://raw.githubusercontent.com/Binary-Kitchen/kitchenlog/master/media/'
 
+log_entry_template = Template(
+"""BEGIN: {{ today }}
+END: None
+TOPIC: Küchenzeit
+Appendix: None
+
+  * Hier kommen ein paar tolle Stichpunkte im Dokuwiki Format
+"""
+)
+
 
 def parse_defval(value):
     if value.lower() == 'none' or not value:
@@ -85,6 +95,10 @@ def generate_wikimedia(media):
     for image, options in media:
         ret += '{{ %s/%s }}\n' % (image_url, image)
     return ret
+
+
+def generate_template():
+    return log_entry_template.render(today = format_ymd(datetime.today()))
 
 
 class LogEntry:
