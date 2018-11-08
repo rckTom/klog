@@ -30,6 +30,9 @@ class KitchenLog:
     def commit(self):
         list(map(lambda x: x.save(), [x for x in self._entries if x.dirty]))
 
+    def get(self, date):
+        return [x for x in self._entries if x._begin == date]
+
     def export_dokuwiki(self, target_path):
         for entry in self._entries:
             entry.to_dokuwiki(target_path)
