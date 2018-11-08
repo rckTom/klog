@@ -119,36 +119,57 @@ class LogEntry:
         with open(filename, 'r') as f:
             log_entry = f.read()
 
-        self._media = list()
-        self._headers = dict()
-        self._dirty = False
-
-        headers, self._content = log_entry.split('\n\n', 1)
-        headers = headers.split('\n')
-        headers = [header.split(': ', 1) for header in headers]
-
-        for key, value in headers:
-            if key == 'BEGIN':
-                self._begin = parse_ymd(value)
-            elif key == 'END':
-                self._end = parse_ymd(value)
-            elif key == 'MEDIA':
-                self._media.append(parse_medium(value))
-            else:
-                self._headers[key] = parse_defval(value)
+        self.load(log_entry, False)
 
         if self.dirty:
             print('Warning: Loaded dirty file %s' % filename)
+
+    @staticmethod
+    def try_parse(log_entry):
+        media = list()
+        headers = dict()
+        begin = None
+        end = None
+
+        headers_raw, content = log_entry.split('\n\n', 1)
+        headers_raw = headers_raw.split('\n')
+        headers_raw = [x for x in headers_raw if not x.startswith('# ')]
+        headers_raw = [header.split(': ', 1) for header in headers_raw]
+
+        for key, value in headers_raw:
+            if key == 'BEGIN':
+                begin = parse_ymd(value)
+            elif key == 'END':
+                end = parse_ymd(value)
+            elif key == 'MEDIA':
+                media.append(parse_medium(value))
+            else:
+                headers[key] = parse_defval(value)
+
+        return begin, end, headers, content, media
+
+    def load(self, log_entry, dirty):
+        self._dirty = dirty
+        self._begin, self._end, self._headers, self._content, self._media = LogEntry.try_parse(log_entry)
 
     @property
     def dirty(self):
         return self._dirty or (self._begin != self._filename_date)
 
     @property
+    def topic(self):
+        return self._headers['TOPIC']
+
+    @property
+    def date(self):
+        return format_ymd(self._begin)
+
+    @property
     def fname(self):
         return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._no
 
     def save(self):
+        print('Saving %s' % self.fname)
         if self._begin != self._filename_date:
             remove(self._filename)
             self._no = 0
