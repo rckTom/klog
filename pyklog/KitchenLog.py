@@ -21,12 +21,22 @@ from os.path import join
 from .LogEntry import LogEntry
 
 
+def load_entry(directory, file):
+    try:
+        entry = LogEntry.from_file(directory, file)
+    except Exception as e:
+        print('Ignoring corrupt entry %s: %s' % (file, str(e)))
+        return None
+    return entry
+
+
 class KitchenLog:
     def __init__(self, directory):
         self._directory = directory
         target_entries = glob(join(self._directory, '20*', '*', '*.txt'))
         target_entries = [x[(len(directory) + 1):] for x in target_entries]
-        self._entries = [LogEntry.from_file(directory, x) for x in target_entries]
+        self._entries = [load_entry(directory, x) for x in target_entries]
+        self._entries = list(filter(None, self._entries))
 
     def commit(self):
         list(map(lambda x: x.save(), [x for x in self._entries if x.dirty]))
