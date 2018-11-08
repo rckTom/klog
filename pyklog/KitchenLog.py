@@ -25,13 +25,19 @@ class KitchenLog:
     def __init__(self, directory):
         self._directory = directory
         target_entries = glob(join(self._directory, '20*', '*', '*.txt'))
-        self._entries = [LogEntry(x) for x in target_entries]
+        target_entries = [x[(len(directory) + 1):] for x in target_entries]
+        self._entries = [LogEntry.from_file(directory, x) for x in target_entries]
 
     def commit(self):
         list(map(lambda x: x.save(), [x for x in self._entries if x.dirty]))
 
     def get(self, date):
         return [x for x in self._entries if x._begin == date]
+
+    def new_entry(self, date):
+        entry = LogEntry.new(self._directory, date)
+        self._entries.append(entry)
+        return entry
 
     def export_dokuwiki(self, target_path):
         for entry in self._entries:

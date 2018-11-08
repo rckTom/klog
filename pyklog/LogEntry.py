@@ -32,9 +32,10 @@ log_entry_template = Template(
 """BEGIN: {{ today }}
 END: None
 TOPIC: Küchenzeit
-Appendix: None
+APPENDIX: None
 
   * Hier kommen ein paar tolle Stichpunkte im Dokuwiki Format
+
 """
 )
 
@@ -97,60 +98,12 @@ def generate_wikimedia(media):
     return ret
 
 
-def generate_template():
-    return log_entry_template.render(today = format_ymd(datetime.today()))
-
-
 class LogEntry:
-    def __init__(self, filename):
-        self._filename = filename
-
-        path, base = split(filename)
-        base = splitext(base)[0]
-        day, self._no = [int(x) for x in base.split('-')]
-
-        path, month = split(path)
-        path, year = split(path)
-
-        self._path = path
-
-        self._filename_date = parse_ymd('%s-%s-%s' % (year, month, day))
-
-        with open(filename, 'r') as f:
-            log_entry = f.read()
-
-        self.load(log_entry, False)
-
-        if self.dirty:
-            print('Warning: Loaded dirty file %s' % filename)
-
-    @staticmethod
-    def try_parse(log_entry):
-        media = list()
-        headers = dict()
-        begin = None
-        end = None
-
-        headers_raw, content = log_entry.split('\n\n', 1)
-        headers_raw = headers_raw.split('\n')
-        headers_raw = [x for x in headers_raw if not x.startswith('# ')]
-        headers_raw = [header.split(': ', 1) for header in headers_raw]
-
-        for key, value in headers_raw:
-            if key == 'BEGIN':
-                begin = parse_ymd(value)
-            elif key == 'END':
-                end = parse_ymd(value)
-            elif key == 'MEDIA':
-                media.append(parse_medium(value))
-            else:
-                headers[key] = parse_defval(value)
-
-        return begin, end, headers, content, media
-
-    def load(self, log_entry, dirty):
-        self._dirty = dirty
-        self._begin, self._end, self._headers, self._content, self._media = LogEntry.try_parse(log_entry)
+    def __init__(self, content, directory):
+        self.load(content, False)
+        self._filename = None
+        self._filename_date = None
+        self._directory = directory
 
     @property
     def dirty(self):
@@ -168,15 +121,36 @@ class LogEntry:
     def fname(self):
         return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._no
 
+    def set_filename(self, filename):
+        self._filename = filename
+
+        path, base = split(filename)
+        base = splitext(base)[0]
+        day, self._no = [int(x) for x in base.split('-')]
+
+        path, month = split(path)
+        _ , year = split(path)
+
+        self._filename_date = parse_ymd('%s-%s-%s' % (year, month, day))
+
+    def load(self, log_entry, dirty):
+        self._dirty = dirty
+        self._begin, self._end, self._headers, self._content, self._media = LogEntry.try_parse(log_entry)
+
     def save(self):
-        if self._begin != self._filename_date:
+        if self._filename_date and self._begin != self._filename_date:
             remove(self._filename)
+            self._filename = None
+
+        if self._filename is None:
             self._no = 0
-            while isfile(join(self._path, self.fname)):
+            while isfile(join(self._directory, self.fname)):
                 self._no += 1
 
+            self.set_filename(join(self._directory, self.fname))
+
         print('Saving %s' % self.fname)
-        with open(join(self._path, self.fname), 'w') as f:
+        with open(self._filename, 'w') as f:
             f.write(str(self))
 
     def __str__(self):
@@ -208,3 +182,43 @@ class LogEntry:
 
         with open(target, 'w') as f:
             f.write(self.generate_dokuwiki())
+
+    @staticmethod
+    def try_parse(log_entry):
+        media = list()
+        headers = dict()
+        begin = None
+        end = None
+
+        headers_raw, content = log_entry.split('\n\n', 1)
+        headers_raw = headers_raw.split('\n')
+        headers_raw = [x for x in headers_raw if not x.startswith('# ')]
+        headers_raw = [header.split(': ', 1) for header in headers_raw]
+
+        for key, value in headers_raw:
+            if key == 'BEGIN':
+                begin = parse_ymd(value)
+            elif key == 'END':
+                end = parse_ymd(value)
+            elif key == 'MEDIA':
+                media.append(parse_medium(value))
+            else:
+                headers[key] = parse_defval(value)
+
+        return begin, end, headers, content, media
+
+    @staticmethod
+    def from_file(directory, file):
+        filename = join(directory, file)
+        with open(filename, 'r') as f:
+            content = f.read()
+
+        entry = LogEntry(content, directory)
+        entry.set_filename(filename)
+
+        return entry
+
+    @staticmethod
+    def new(directory, date):
+        template = log_entry_template.render(today = format_ymd(date))
+        return LogEntry(template, directory)
