@@ -169,13 +169,13 @@ class LogEntry:
         return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._no
 
     def save(self):
-        print('Saving %s' % self.fname)
         if self._begin != self._filename_date:
             remove(self._filename)
             self._no = 0
             while isfile(join(self._path, self.fname)):
                 self._no += 1
 
+        print('Saving %s' % self.fname)
         with open(join(self._path, self.fname), 'w') as f:
             f.write(str(self))
 
