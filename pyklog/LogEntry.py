@@ -197,10 +197,16 @@ class LogEntry:
         begin = None
         end = None
 
-        headers_raw, content = log_entry.split('\n\n', 1)
-        headers_raw = headers_raw.split('\n')
-        headers_raw = [x for x in headers_raw if not x.startswith('# ')]
-        headers_raw = [header.split(': ', 1) for header in headers_raw]
+        if not log_entry:
+            raise ValueError('file is empty')
+
+        try:
+            headers_raw, content = log_entry.split('\n\n', 1)
+            headers_raw = headers_raw.split('\n')
+            headers_raw = [x for x in headers_raw if not x.startswith('# ')]
+            headers_raw = [header.split(': ', 1) for header in headers_raw]
+        except Exception as e:
+            raise ValueError('unable to split header and content: %s' % str(e))
 
         for key, value in headers_raw:
             if key == 'BEGIN':
@@ -211,6 +217,16 @@ class LogEntry:
                 media.append(parse_medium(value))
             else:
                 headers[key] = parse_defval(value)
+
+        # sanity checks
+        if begin is None:
+            raise ValueError('Missing header: BEGIN')
+        if 'TOPIC' not in headers:
+            raise ValueError('Missing header: TOPIC')
+        if 'APPENDIX' not in headers:
+            raise ValueError('Missing header: APPENDIX')
+        if not content:
+            raise ValueError('Empty content')
 
         return begin, end, headers, content, media
 
