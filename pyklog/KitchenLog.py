@@ -16,7 +16,7 @@ details.
 """
 
 from glob import glob
-from os.path import join
+from os.path import join, normpath
 
 from .LogEntry import LogEntry
 
@@ -32,10 +32,10 @@ def load_entry(directory, file):
 
 class KitchenLog:
     def __init__(self, directory):
-        self._directory = directory
+        self._directory = normpath(directory)
         target_entries = glob(join(self._directory, '20*', '*', '*.txt'))
-        target_entries = [x[(len(directory) + 1):] for x in target_entries]
-        self._entries = [load_entry(directory, x) for x in target_entries]
+        target_entries = [x[(len(self._directory) + 1):] for x in target_entries]
+        self._entries = [load_entry(self._directory, x) for x in target_entries]
         self._entries = list(filter(None, self._entries))
 
     def commit(self):
