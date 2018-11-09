@@ -103,10 +103,13 @@ def generate_wikimedia(media):
 
 class LogEntry:
     def __init__(self, content, directory):
-        self.load(content, False)
         self._filename = None
         self._filename_date = None
+        self._dirty = False
+        self._media = list()
         self._directory = directory
+        self._removed_media = set()
+        self._begin, self._end, self._headers, self._content, self._media = LogEntry.try_parse(content)
 
     @property
     def dirty(self):
@@ -136,9 +139,26 @@ class LogEntry:
 
         self._filename_date = parse_ymd('%s-%s-%s' % (year, month, day))
 
-    def load(self, log_entry, dirty):
+    def reload(self, log_entry, dirty):
+        new_entry = LogEntry.try_parse(log_entry)
+        new_media = new_entry[4]
+
+        def media2filenames(media):
+            return {x[0] for x in media}
+
+        new_files = media2filenames(new_media)
+        old_files = media2filenames(self._media)
+
+        added = new_files - old_files
+        self._removed_media |= old_files - new_files
+
+        if len(added):
+            raise ValueError('direct adding of media is not supported')
+        for media in self._removed_media:
+            print('Removed media %s' % media)
+
         self._dirty = dirty
-        self._begin, self._end, self._headers, self._content, self._media = LogEntry.try_parse(log_entry)
+        self._begin, self._end, self._headers, self._content, self._media = new_entry
 
     def save(self):
         if self._filename_date and self._begin != self._filename_date:
@@ -155,6 +175,11 @@ class LogEntry:
         print('Saving %s' % self.fname)
         with open(self._filename, 'w') as f:
             f.write(str(self))
+
+        for media in self._removed_media:
+            print('Removing media %s' % media)
+            remove(join(self._directory, 'media', media))
+        self._removed_media = set()
 
     def remove(self):
         if self._filename:
