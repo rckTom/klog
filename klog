@@ -188,7 +188,7 @@ while retry:
                 print('Any media/attachments, sir? y/N')
                 while prompt_yn() == 'y':
                     media = easygui.fileopenbox()
-                    if not os.path.isfile(media):
+                    if not media or not os.path.isfile(media):
                         print('not a valid file')
                     else:
                         target_entry.attach_media(media)
