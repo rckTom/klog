@@ -19,7 +19,8 @@ from datetime import datetime
 from jinja2 import Template
 from os.path import join, isfile, split
 from os import makedirs, remove
-from os.path import splitext, dirname
+from os.path import splitext, dirname, basename
+from shutil import copyfile
 
 dokuwiki_log_template = Template(
 """===== {{ topic }}: {{ date }} =====
@@ -109,6 +110,7 @@ class LogEntry:
         self._media = list()
         self._directory = directory
         self._removed_media = set()
+        self._added_media = set()
         self._begin, self._end, self._headers, self._content, self._media = LogEntry.try_parse(content)
 
     @property
@@ -179,11 +181,20 @@ class LogEntry:
         for media in self._removed_media:
             print('Removing media %s' % media)
             remove(join(self._directory, 'media', media))
+
+        for media in self._added_media:
+            copyfile(media, join(self._directory, 'media', basename(media)))
+
+        self._added_media = set()
         self._removed_media = set()
 
     def remove(self):
         if self._filename:
             remove(self._filename)
+
+    def attach_media(self, media):
+        self._media.append((basename(media), None))
+        self._added_media.add(media)
 
     def __str__(self):
         ret = ''
