@@ -1,0 +1,201 @@
+#!/usr/bin/env python3
+
+"""
+klog - Binary Kitchen's log tool
+
+Copyright (c) Binary Kitchen e.V., 2018
+
+Author:
+  Ralf Ramsauer <ralf@binary-kitchen.de>
+
+This work is licensed under the terms of the GNU GPL, version 2.  See
+the LICENSE file in the top-level directory.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+"""
+
+import argparse
+import configparser
+import datetime
+import easygui
+import os
+import git
+import subprocess
+import tempfile
+import termios
+import tty
+import sys
+import time
+
+from locale import setlocale, LC_ALL
+
+from pyklog.KitchenLog import KitchenLog
+from pyklog.LogEntry import parse_ymd, format_ymd
+
+f_config = os.path.join(os.environ['HOME'], '.config', 'klogrc')
+editor = os.environ.get('EDITOR', 'nano')
+default_config_template = """[klog]
+# Please don't touch those lines unless you know what you're doing.
+cache = ~/.cache/klog/
+kitchenlog = git@github.com:Binary-Kitchen/kitchenlog.git
+# Choose this if you don't use SSH keys (trust me, you should...)
+# kitchenlog = https://github.com/Binary-Kitchen/kitchenlog.git
+"""
+
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
+def edit(message):
+    with tempfile.NamedTemporaryFile(suffix=".tmp") as tf:
+        tf.write(message.encode('utf-8'))
+        tf.flush()
+        subprocess.call([editor, tf.name])
+        tf.seek(0)
+        return tf.read().decode('utf-8')
+
+
+def getch():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
+
+
+def check_date(value):
+    date = parse_ymd(value)
+    if not date:
+        raise argparse.ArgumentError('%s is not a valid date' % value)
+    return date
+
+
+def prompt(allowed, default):
+    sys.stdout.write('> ')
+    sys.stdout.flush()
+    while True:
+        char = getch()
+        if char == '\r':
+            ret = default
+            break
+        if char in allowed or char == default:
+            ret = char
+            break
+    print(ret)
+    return ret
+
+
+def prompt_yn(default='n'):
+    return prompt(['y', 'n'], default)
+
+
+setlocale(LC_ALL, 'de_DE.UTF-8')
+
+parser = argparse.ArgumentParser(description='klog - Binary Kitchen log cmdline tool.')
+parser.add_argument('date', type=check_date, default=format_ymd(datetime.date.today()), nargs='?',
+                    help='date in Y-M-D, default: today')
+parser.add_argument('-n', '--no-sync', action='store_true', default=False, help="Don't sync repository")
+args = parser.parse_args()
+
+# Create config if !exists
+if not os.path.isfile(f_config):
+    print('First klog start. Creating and editing config...')
+    time.sleep(2)
+    config = edit(default_config_template)
+    with open(f_config, 'w') as f:
+        f.write(config)
+    print('File saved as %s' % f_config)
+
+# Load config
+config = configparser.ConfigParser()
+config.read(f_config)
+
+try:
+    d_cache = config.get('klog', 'cache')
+    kitchenlog_uri = config.get('klog', 'kitchenlog')
+except configparser.NoOptionError as e:
+    eprint('Missing %s in your config' % e.message)
+    quit(-1)
+
+d_cache = os.path.expanduser(d_cache)
+d_repo = os.path.join(d_cache, 'kitchenlog')
+
+os.makedirs(d_cache, exist_ok=True)
+
+# Check if local repo clone exists
+if not os.path.isdir(d_repo):
+    print('Cloning into %s...' % kitchenlog_uri)
+    repo = git.Repo.clone_from(kitchenlog_uri, d_repo)
+else:
+    repo = git.Repo(d_repo)
+
+# Update repository
+if not args.no_sync:
+    print('Updating repo...')
+    repo.remote('origin').pull()
+
+klog = KitchenLog(d_repo)
+entries = klog.get(args.date)
+
+if len(entries) == 0:
+    target_entry = klog.new_entry(args.date)
+else:
+    print('Found %d entries for %s. Choose wisely.' % (len(entries), format_ymd(args.date)))
+    for no, entry in enumerate(entries):
+        print('  %d: %s (%s)' % (no, entry.date, entry.topic))
+    print('  n: (n)ew entry')
+    print('  x: e(x)it')
+    choice = prompt([str(x) for x in range(0, len(entries))] + ['n'], 'x')
+    if choice == 'x':
+        quit()
+    elif choice == 'n':
+        target_entry = klog.new_entry(args.date)
+    else:
+        target_entry = entries[int(choice)]
+
+new = str(target_entry)
+retry = True
+while retry:
+    try:
+        new = edit(new)
+        if not new:
+            print('Delete entry? y/N')
+            if prompt_yn() == 'y':
+                target_entry.remove()
+            quit()
+        target_entry.reload(new, True)
+        retry = False
+    except ValueError as e:
+        print(str(e))
+        print('Failed. Retry? y/N')
+        if prompt_yn() != 'y':
+            quit(-1)
+
+        new = '# %s\n' % str(e) + new
+
+print('Any media/attachments, sir? y/N')
+while prompt_yn() == 'y':
+    media = easygui.fileopenbox()
+    if not os.path.isfile(media):
+        print('not a valid file')
+    else:
+        target_entry.attach_media(media)
+    print('Yet another one? y/N')
+
+print('Commit? Y/n')
+if prompt_yn('y') == 'n':
+    quit()
+
+klog.commit()
+
+repo.git.add('-A')
+repo.git.commit('--allow-empty', '-m', 'Modified %s' % format_ymd(args.date))
+if not args.no_sync:
+    repo.git.push('origin')
