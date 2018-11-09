@@ -115,6 +115,7 @@ if not os.path.isfile(f_config):
     print('First klog start. Creating and editing config...')
     time.sleep(2)
     config = edit(default_config_template)
+    os.makedirs(os.path.split(f_config)[0], exist_ok=True)
     with open(f_config, 'w') as f:
         f.write(config)
     print('File saved as %s' % f_config)
