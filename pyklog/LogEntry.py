@@ -131,6 +131,10 @@ class LogEntry:
         return format_ymd(self._begin)
 
     @property
+    def date_raw(self):
+        return self._begin
+
+    @property
     def fname(self):
         return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._no
 

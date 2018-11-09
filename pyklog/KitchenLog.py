@@ -18,7 +18,29 @@ details.
 from glob import glob
 from os.path import join, normpath
 
+from jinja2 import Template
+
 from .LogEntry import LogEntry
+
+landing_page = Template(
+"""====== Küchen-Log ======
+
+{% for year, months in content|dictsort(reverse=true) -%}
+===== {{ year }} =====
+{% for month, entries in months|dictsort(reverse=true) -%}
+{% raw %}  {% endraw %}* [[:kitchenlog:{{ year }}-{{ '%02d' % month }}|{{ entries[0].date_raw.strftime('%B') }}]]
+{% endfor %}
+{% endfor %}
+""")
+
+month_page = Template(
+"""====== Küchen-Log {{ date.strftime('%B %Y') }} ======
+
+**//If it's not in the log, it didn't happen!//**
+
+{% raw %}{{{% endraw -%}blog>kitchenlog:entry:{{ date.year }}:{{ '%02d' % date.month }}?31&nouser&nodate&nomdate{% raw %}}}{% endraw %}
+
+""")
 
 
 def load_entry(directory, file):
@@ -28,6 +50,11 @@ def load_entry(directory, file):
         print('Ignoring corrupt entry %s: %s' % (file, str(e)))
         return None
     return entry
+
+
+def save_filename(content, file):
+    with open(file, 'w') as f:
+        f.write(content)
 
 
 class KitchenLog:
@@ -52,3 +79,21 @@ class KitchenLog:
     def export_dokuwiki(self, target_path):
         for entry in self._entries:
             entry.to_dokuwiki(target_path)
+
+        dates = {entry.date_raw for entry in self._entries}
+        years = dict()
+        for year in {x.year for x in dates}:
+            years[year] = {
+                x.month:
+                    [entry for entry in self._entries
+                     if entry.date_raw.year == year and entry.date_raw.month == x.month]
+                for x in dates
+                if x.year == year}
+
+        for year, months in years.items():
+            for month, entries in months.items():
+                month_rendered = month_page.render(date=entries[0].date_raw)
+                save_filename(month_rendered, join(target_path, '%d-%02d.txt'% (year, month)))
+
+        lp = landing_page.render(content=years)
+        save_filename(lp, join(target_path, 'start.txt'))
