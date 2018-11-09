@@ -29,7 +29,10 @@ dokuwiki_log_template = Template(
 image_url = 'https://raw.githubusercontent.com/Binary-Kitchen/kitchenlog/master/media/'
 
 log_entry_template = Template(
-"""BEGIN: {{ today }}
+"""# Nach den headern muss eine Leerzeile folgen. Alle header sind anpassbar.
+# Wird ein MEDIA header entfernt, so wird der Anhang gelöscht. Das Speichern
+# einer leeren Datei löscht den Eintrag.
+BEGIN: {{ today }}
 END: None
 TOPIC: Küchenzeit
 APPENDIX: None
@@ -152,6 +155,10 @@ class LogEntry:
         print('Saving %s' % self.fname)
         with open(self._filename, 'w') as f:
             f.write(str(self))
+
+    def remove(self):
+        if self._filename:
+            remove(self._filename)
 
     def __str__(self):
         ret = ''
