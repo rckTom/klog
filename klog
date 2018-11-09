@@ -169,8 +169,18 @@ while retry:
             print('Delete entry? y/N')
             if prompt_yn() == 'y':
                 target_entry.remove()
-            quit()
-        target_entry.reload(new, True)
+        else:
+            target_entry.reload(new, True)
+
+            print('Any media/attachments, sir? y/N')
+            while prompt_yn() == 'y':
+                media = easygui.fileopenbox()
+                if not os.path.isfile(media):
+                    print('not a valid file')
+                else:
+                    target_entry.attach_media(media)
+                print('Yet another one? y/N')
+
         retry = False
     except ValueError as e:
         print(str(e))
@@ -179,15 +189,6 @@ while retry:
             quit(-1)
 
         new = '# %s\n' % str(e) + new
-
-print('Any media/attachments, sir? y/N')
-while prompt_yn() == 'y':
-    media = easygui.fileopenbox()
-    if not os.path.isfile(media):
-        print('not a valid file')
-    else:
-        target_entry.attach_media(media)
-    print('Yet another one? y/N')
 
 print('Commit? Y/n')
 if prompt_yn('y') == 'n':

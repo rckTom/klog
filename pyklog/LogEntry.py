@@ -44,6 +44,10 @@ APPENDIX: None
 )
 
 
+def media2filenames(media):
+    return {x[0] for x in media}
+
+
 def parse_defval(value):
     if value.lower() == 'none' or not value:
         return None
@@ -104,6 +108,7 @@ def generate_wikimedia(media):
 
 class LogEntry:
     def __init__(self, content, directory):
+        self._remove = False
         self._filename = None
         self._filename_date = None
         self._dirty = False
@@ -145,9 +150,6 @@ class LogEntry:
         new_entry = LogEntry.try_parse(log_entry)
         new_media = new_entry[4]
 
-        def media2filenames(media):
-            return {x[0] for x in media}
-
         new_files = media2filenames(new_media)
         old_files = media2filenames(self._media)
 
@@ -163,6 +165,16 @@ class LogEntry:
         self._begin, self._end, self._headers, self._content, self._media = new_entry
 
     def save(self):
+        if self._remove:
+            if not self._filename:
+                return
+            for media in media2filenames(self._media):
+                print('Removing media %s' % media)
+                remove(join(self._directory, 'media', media))
+            print('Removing %s' % self.fname)
+            remove(self._filename)
+            return
+
         if self._filename_date and self._begin != self._filename_date:
             remove(self._filename)
             self._filename = None
@@ -189,8 +201,8 @@ class LogEntry:
         self._removed_media = set()
 
     def remove(self):
-        if self._filename:
-            remove(self._filename)
+        self._dirty = True
+        self._remove = True
 
     def attach_media(self, media):
         self._media.append((basename(media), None))
