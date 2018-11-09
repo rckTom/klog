@@ -20,7 +20,6 @@ details.
 import argparse
 import configparser
 import datetime
-import easygui
 import os
 import git
 import subprocess
@@ -29,6 +28,12 @@ import termios
 import tty
 import sys
 import time
+
+try:
+    import easygui
+    has_gui = True
+except ImportError:
+    has_gui = False
 
 from locale import setlocale, LC_ALL
 
@@ -145,8 +150,9 @@ if not args.no_sync:
 klog = KitchenLog(d_repo)
 
 if args.generate:
-    print('Implement dokuwiki generation')
-    quit(-1)
+    d_dokuwiki = args.generate
+    klog.export_dokuwiki(d_dokuwiki)
+    quit()
 
 entries = klog.get(args.date)
 
@@ -178,14 +184,15 @@ while retry:
         else:
             target_entry.reload(new, True)
 
-            print('Any media/attachments, sir? y/N')
-            while prompt_yn() == 'y':
-                media = easygui.fileopenbox()
-                if not os.path.isfile(media):
-                    print('not a valid file')
-                else:
-                    target_entry.attach_media(media)
-                print('Yet another one? y/N')
+            if has_gui:
+                print('Any media/attachments, sir? y/N')
+                while prompt_yn() == 'y':
+                    media = easygui.fileopenbox()
+                    if not os.path.isfile(media):
+                        print('not a valid file')
+                    else:
+                        target_entry.attach_media(media)
+                    print('Yet another one? y/N')
 
         retry = False
     except ValueError as e:
