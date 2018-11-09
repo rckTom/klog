@@ -101,6 +101,7 @@ setlocale(LC_ALL, 'de_DE.UTF-8')
 parser = argparse.ArgumentParser(description='klog - Binary Kitchen log cmdline tool.')
 parser.add_argument('date', type=check_date, default=format_ymd(datetime.date.today()), nargs='?',
                     help='date in Y-M-D, default: today')
+parser.add_argument('-g', '--generate', type=str, default=None)
 parser.add_argument('-n', '--no-sync', action='store_true', default=False, help="Don't sync repository")
 args = parser.parse_args()
 
@@ -142,6 +143,11 @@ if not args.no_sync:
     repo.remote('origin').pull()
 
 klog = KitchenLog(d_repo)
+
+if args.generate:
+    print('Implement dokuwiki generation')
+    quit(-1)
+
 entries = klog.get(args.date)
 
 if len(entries) == 0:
