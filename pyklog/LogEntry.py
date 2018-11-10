@@ -57,7 +57,10 @@ def parse_defval(value):
 def parse_ymd(value):
     value = parse_defval(value)
     if value:
-        value = datetime.strptime(value, '%Y-%m-%d')
+        try:
+            value = datetime.strptime(value, '%Y-%m-%d')
+        except ValueError:
+            return None
     return value
 
 
