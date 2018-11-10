@@ -203,8 +203,10 @@ class LogEntry:
             print('Removing media %s' % media)
             remove(join(self._directory, 'media', media))
 
-        for media in self._added_media:
-            copyfile(media, join(self._directory, 'media', basename(media)))
+        for name, content in self._added_media:
+            filename = join(self._directory, 'media', name)
+            with open(filename, 'wb') as f:
+                f.write(content)
 
         self._added_media = set()
         self._removed_media = set()
@@ -213,9 +215,15 @@ class LogEntry:
         self._dirty = True
         self._remove = True
 
-    def attach_media(self, media):
-        self._media.append((basename(media), None))
-        self._added_media.add(media)
+    def attach_media(self, name, content):
+        # TBD support attachment options
+        self._media.append((name, None))
+        self._added_media.add((name, content))
+
+    def attach_media_by_file(self, filename):
+        with open(filename, 'rb') as f:
+            content = f.read()
+        return self.attach_media(basename(filename), content)
 
     def __str__(self):
         ret = ''

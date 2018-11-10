@@ -140,7 +140,7 @@ def interactive_edit(klog):
                         if not media or not os.path.isfile(media):
                             print('not a valid file')
                         else:
-                            target_entry.attach_media(media)
+                            target_entry.attach_media_by_file(media)
                         print('Yet another one? y/N')
 
             retry = False
