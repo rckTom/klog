@@ -101,6 +101,60 @@ def prompt_yn(default='n'):
     return prompt(['y', 'n'], default)
 
 
+def interactive_edit(klog):
+    entries = klog.get(args.date)
+    if len(entries) == 0:
+        target_entry = klog.new_entry(args.date)
+    else:
+        print('Found %d entries for %s. Choose wisely.' % (len(entries), format_ymd(args.date)))
+        for no, entry in enumerate(entries):
+            print('  %d: %s (%s)' % (no, entry.date, entry.topic))
+        print('  n: (n)ew entry')
+        print('  x: e(x)it')
+        choice = prompt([str(x) for x in range(0, len(entries))] + ['n'], 'x')
+        if choice == 'x':
+            return False
+        elif choice == 'n':
+            target_entry = klog.new_entry(args.date)
+        else:
+            target_entry = entries[int(choice)]
+
+    new = str(target_entry)
+    retry = True
+    while retry:
+        try:
+            new = edit(new)
+            if not new:
+                print('Delete entry? y/N')
+                if prompt_yn() == 'y':
+                    target_entry.remove()
+            else:
+                target_entry.reload(new, True)
+
+                if has_gui:
+                    print('Any media/attachments, sir? y/N')
+                    while prompt_yn() == 'y':
+                        media = easygui.fileopenbox()
+                        if not media or not os.path.isfile(media):
+                            print('not a valid file')
+                        else:
+                            target_entry.attach_media(media)
+                        print('Yet another one? y/N')
+
+            retry = False
+        except ValueError as e:
+            print(str(e))
+            print('Failed. Retry? y/N')
+            if prompt_yn() != 'y':
+                return False
+            new = '# %s\n' % str(e) + new
+
+    print('Commit? Y/n')
+    if prompt_yn('y') == 'n':
+        return False
+    return True
+
+
 setlocale(LC_ALL, 'de_DE.UTF-8')
 
 parser = argparse.ArgumentParser(description='klog - Binary Kitchen log cmdline tool.')
@@ -150,67 +204,18 @@ if not args.no_sync:
 
 klog = KitchenLog(d_repo)
 
+update_repo = False
+
 if args.generate:
     d_dokuwiki = args.generate
     klog.export_dokuwiki(d_dokuwiki)
     quit()
-
-entries = klog.get(args.date)
-
-if len(entries) == 0:
-    target_entry = klog.new_entry(args.date)
 else:
-    print('Found %d entries for %s. Choose wisely.' % (len(entries), format_ymd(args.date)))
-    for no, entry in enumerate(entries):
-        print('  %d: %s (%s)' % (no, entry.date, entry.topic))
-    print('  n: (n)ew entry')
-    print('  x: e(x)it')
-    choice = prompt([str(x) for x in range(0, len(entries))] + ['n'], 'x')
-    if choice == 'x':
-        quit()
-    elif choice == 'n':
-        target_entry = klog.new_entry(args.date)
-    else:
-        target_entry = entries[int(choice)]
+    update_repo = interactive_edit(klog)
 
-new = str(target_entry)
-retry = True
-while retry:
-    try:
-        new = edit(new)
-        if not new:
-            print('Delete entry? y/N')
-            if prompt_yn() == 'y':
-                target_entry.remove()
-        else:
-            target_entry.reload(new, True)
-
-            if has_gui:
-                print('Any media/attachments, sir? y/N')
-                while prompt_yn() == 'y':
-                    media = easygui.fileopenbox()
-                    if not media or not os.path.isfile(media):
-                        print('not a valid file')
-                    else:
-                        target_entry.attach_media(media)
-                    print('Yet another one? y/N')
-
-        retry = False
-    except ValueError as e:
-        print(str(e))
-        print('Failed. Retry? y/N')
-        if prompt_yn() != 'y':
-            quit(-1)
-
-        new = '# %s\n' % str(e) + new
-
-print('Commit? Y/n')
-if prompt_yn('y') == 'n':
-    quit()
-
-klog.commit()
-
-repo.git.add('-A')
-repo.git.commit('--allow-empty', '-m', 'Modified %s' % format_ymd(args.date))
-if not args.no_sync:
-    repo.git.push('origin')
+if update_repo:
+    klog.commit()
+    repo.git.add('-A')
+    repo.git.commit('--allow-empty', '-m', 'Modified %s' % format_ymd(args.date))
+    if not args.no_sync:
+        repo.git.push('origin')
