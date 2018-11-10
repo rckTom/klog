@@ -16,6 +16,7 @@ details.
 """
 
 from glob import glob
+from os import remove
 from os.path import join, normpath
 
 from jinja2 import Template
@@ -58,9 +59,11 @@ def save_filename(content, file):
 
 
 class KitchenLog:
+    FILES_GLOB = join('20*', '*', '*.txt')
+
     def __init__(self, directory):
         self._directory = normpath(directory)
-        target_entries = glob(join(self._directory, '20*', '*', '*.txt'))
+        target_entries = glob(join(self._directory, KitchenLog.FILES_GLOB))
         target_entries = [x[(len(self._directory) + 1):] for x in target_entries]
         self._entries = [load_entry(self._directory, x) for x in target_entries]
         self._entries = list(filter(None, self._entries))
@@ -77,6 +80,12 @@ class KitchenLog:
         return entry
 
     def export_dokuwiki(self, target_path):
+        # delete old data
+        target_entries = glob(join(target_path, 'entry', KitchenLog.FILES_GLOB))
+        target_entries += glob(join(target_path, '*.txt'))
+        for target in target_entries:
+            remove(target)
+
         for entry in self._entries:
             entry.to_dokuwiki(target_path)
 
