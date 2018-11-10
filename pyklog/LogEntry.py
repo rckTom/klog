@@ -194,6 +194,8 @@ class LogEntry:
             self.set_filename(join(self._directory, self.fname))
 
         print('Saving %s' % self.fname)
+        # ensure the underlying directory is existing
+        makedirs(dirname(self._filename), exist_ok=True)
         with open(self._filename, 'w') as f:
             f.write(str(self))
 
