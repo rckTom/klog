@@ -23,6 +23,7 @@ import datetime
 import os
 import git
 import subprocess
+import smtplib
 import tempfile
 import termios
 import tty
@@ -164,6 +165,7 @@ parser.add_argument('date', type=check_date, default=format_ymd(datetime.date.to
                     help='date in Y-M-D, default: today')
 parser.add_argument('-g', '--generate', type=str, default=None)
 parser.add_argument('-n', '--no-sync', action='store_true', default=False, help="Don't sync repository")
+parser.add_argument('-e', '--from-email', type=str, default=None, help="Mail receiver")
 args = parser.parse_args()
 
 # Create config if !exists
@@ -213,6 +215,12 @@ if args.generate:
     d_dokuwiki = args.generate
     klog.export_dokuwiki(d_dokuwiki)
     quit()
+elif args.from_email:
+    mail = open(args.from_email, 'rb').read()
+    update_repo, response = klog.handle_email(mail)
+    s = smtplib.SMTP('localhost')
+    s.send_message(response)
+    s.quit()
 else:
     update_repo = interactive_edit(klog)
 
