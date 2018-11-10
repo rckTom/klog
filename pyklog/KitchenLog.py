@@ -15,15 +15,14 @@ FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 details.
 """
 
-from glob import glob
 from os import remove
-from os.path import join, normpath
 
 import datetime
 import email
 import re
 
 from email.mime.text import MIMEText
+from email.header import decode_header
 
 from glob import glob
 from jinja2 import Template
@@ -51,6 +50,7 @@ month_page = Template(
 
 """)
 mail_end_marker = '%% END %%'
+quopri_entry = re.compile(r'=\?[\w-]+\?[QB]\?[^?]+?\?=')
 
 
 def normalise_subject(mail):
@@ -98,6 +98,7 @@ def decode_payload(message_part):
         content = message_part.get_payload()
     return content
 
+
 def serialise_multipart(mail):
     ret = []
     parts = mail.get_payload()
@@ -107,6 +108,14 @@ def serialise_multipart(mail):
         else:
             ret.append(part)
     return ret
+
+
+def decode_multiple(encoded, _pattern=quopri_entry):
+    if not quopri_entry.match(encoded):
+        return encoded
+    fixed = '\r\n'.join(_pattern.findall(encoded))
+    output = [b.decode(c) for b, c in decode_header(fixed)]
+    return ''.join(output)
 
 
 class KitchenLog:
@@ -213,8 +222,8 @@ class KitchenLog:
                     new.reload(content, True)
                     for attachment in attachments:
                         attachment_raw = attachment.get_payload(decode=True)
-                        # FIXME! UTF-8 Filenames. Yikes.
-                        new.attach_media(attachment.get_filename(), attachment_raw)
+                        filename = decode_multiple(attachment.get_filename())
+                        new.attach_media(filename, attachment_raw)
                 except ValueError as e:
                     return error_respond('Parser error: %s\n\nOriginal mail below\n--\n\n%s' % (str(e), content))
                 response = 'Success.\n\nNew entry below\n--\n\n%s' % str(new)
