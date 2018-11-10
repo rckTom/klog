@@ -28,6 +28,7 @@ import termios
 import tty
 import sys
 import time
+import urllib.request
 
 try:
     import easygui
@@ -48,6 +49,7 @@ cache = ~/.cache/klog/
 kitchenlog = git@github.com:Binary-Kitchen/kitchenlog.git
 # Choose this if you don't use SSH keys (trust me, you should...)
 # kitchenlog = https://github.com/Binary-Kitchen/kitchenlog.git
+update_trigger = https://wiki.vmexit.de/wiki/update.php
 """
 
 
@@ -181,6 +183,7 @@ config.read(f_config)
 try:
     d_cache = config.get('klog', 'cache')
     kitchenlog_uri = config.get('klog', 'kitchenlog')
+    update_trigger = config.get('klog', 'update_trigger')
 except configparser.NoOptionError as e:
     eprint('Missing %s in your config' % e.message)
     quit(-1)
@@ -219,3 +222,8 @@ if update_repo:
     repo.git.commit('--allow-empty', '-m', 'Modified %s' % format_ymd(args.date))
     if not args.no_sync:
         repo.git.push('origin')
+
+    try:
+        urllib.request.urlopen(update_trigger)
+    except Exception as e:
+        print('Update trigger error: %s' % str(e))
