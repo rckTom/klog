@@ -52,6 +52,78 @@ month_page = Template(
 mail_end_marker = '%% END %%'
 quopri_entry = re.compile(r'=\?[\w-]+\?[QB]\?[^?]+?\?=')
 
+mail_greeting = 'Hi %s,\n'
+
+mail_template_info = \
+"""
+Hi %s,
+"""
+
+mail_template_new = \
+"""
+this is the klog bot. It seems you attempt to create a new entry in the log
+system. Let me assist! Please find your template below.
+First, copy the content of this email to your clipboard, then reply to the
+email, and paste the template.
+
+Please amend headers. Note that you must not remove the last line that
+denotes the end of the entry."""
+
+mail_footer = \
+"""
+Yours sincerely,
+  the klog bot
+"""
+
+mail_info_template = \
+"""
+this is the info page of the almighty klog bot -- a bot that assists to easily
+manage entries in the kitchen log. Generally, you control the klob bot with the
+subject line of your email, which contains a command and an optional date, and,
+depending on the command, some formatted content in the body of the mail.
+
+This is the list of available commands:
+  info / help
+  new [date in Y-m-d format]
+
+info:
+  shows you this page
+
+new:
+  create a new entry.
+
+  If you want to create a new entry, simply compose an email to the bot with
+  the subject "new" or "new date" to the kitchen log bot. The bot will then
+  reply with a template for the new entry. Copy the content to your clipoard,
+  reply to the mail and amend changes as needed.
+
+  Additional images may be attached as simple mail attachments.
+"""
+
+mail_success_template = \
+"""
+your entry was successfully added and will appear on the wiki soon. Thanks for
+choosing Deutsche Bahn again! Exit on the left hand side.
+"""
+
+
+def mail_success(recipient, new):
+    return mail_greeting % recipient + mail_success_template + mail_footer + '\n\n--\n' + new
+
+
+def mail_new(recipient, template):
+    new = (mail_greeting % recipient + mail_template_new + '\n' + mail_footer).split('\n')
+    new = ['# %s' % x for x in new]
+    new.append('\n')
+    new += template.split('\n')
+    new.append(mail_end_marker)
+
+    return '\n'.join(new)
+
+
+def mail_info(recipient):
+    return mail_greeting % recipient + mail_info_template + mail_footer
+
 
 def normalise_subject(mail):
     return re.match(r'(.*: )*(.*)', mail['SUBJECT']).group(2)
@@ -172,6 +244,12 @@ class KitchenLog:
         subject = normalise_subject(mail)
         update_repo = False
 
+        recipient = mail['From']
+        if recipient:
+            recipient = re.sub(r' <.*@.*>', '', recipient)
+        if not recipient:
+            recipient = 'stranger'
+
         def error_respond(message):
             return False, respond_email(address_from, mail, 'Error: %s' % subject, message)
 
@@ -209,13 +287,16 @@ class KitchenLog:
         content = content.strip().split('\n')
         found_entry = False
         for no, line in enumerate(content):
-            if line == mail_end_marker:
+            if line.strip() == mail_end_marker:
                 content = content[0:no]
                 found_entry = True
                 break
         content = '\n'.join(content).strip()
 
-        if command.lower() == 'new':
+        command = command.lower()
+        if command in ['info', 'help']:
+            response = mail_info(recipient)
+        elif command == 'new':
             new = self.new_entry(date)
             if found_entry:
                 try:
@@ -226,11 +307,10 @@ class KitchenLog:
                         new.attach_media(filename, attachment_raw)
                 except ValueError as e:
                     return error_respond('Parser error: %s\n\nOriginal mail below\n--\n\n%s' % (str(e), content))
-                response = 'Success.\n\nNew entry below\n--\n\n%s' % str(new)
+                response = mail_success(recipient, str(new))
                 update_repo = True
             else:
-                response = '# Copy text, reply to this mail, paste text and send it. \n' \
-                           '# Dont remove the %s line!\n%s\n%s\n' % (mail_end_marker, str(new), mail_end_marker)
+                response = mail_new(recipient, str(new))
         else:
             return error_respond('Unknown command: %s' % command)
 
