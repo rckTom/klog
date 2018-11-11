@@ -86,6 +86,7 @@ This is the list of available commands:
   delete no
   info / help
   list
+  modify no
   new [date in Y-m-d format]
 
 delete:
@@ -96,6 +97,10 @@ info:
 
 list:
   return a list of all entries
+
+modify:
+  modifies the specified kitchen log entry. Returns the entry if no content is
+  provided.
 
 new:
   create a new entry.
@@ -283,6 +288,17 @@ class KitchenLog:
         def error_respond(message):
             return False, respond_email(address_from, mail, 'Error: %s' % subject, message)
 
+        def replace_entry(entry, content, attachments):
+            try:
+                entry.reload(content, True)
+                for attachment in attachments:
+                    attachment_raw = attachment.get_payload(decode=True)
+                    filename = decode_multiple(attachment.get_filename())
+                    entry.attach_media(filename, attachment_raw)
+            except ValueError as e:
+                return False, error_respond('Parser error: %s\n\nOriginal mail below\n--\n\n%s' % (str(e), content))
+            return True, mail_success(recipient, str(entry))
+
         split_subject = subject.split(' ')
         if len(split_subject) == 1:
             command = split_subject[0]
@@ -330,7 +346,7 @@ class KitchenLog:
                 entries.append((i, entry.shortlog))
 
             response = mail_list(recipient, entries)
-        elif command == 'delete':
+        elif command == 'delete' or command == 'modify':
             if False in [x.isnumeric() for x in argument]:
                 error_respond('Not an integer: %s' % argument)
 
@@ -339,8 +355,15 @@ class KitchenLog:
                 error_respond('Index out of bound: %d' % no)
 
             entry = self._entries[no]
-            entry.remove()
-            response = mail_delete_ok(recipient, str(entry))
+
+            if command == 'delete':
+                entry.remove()
+                response = mail_delete_ok(recipient, str(entry))
+            elif command == 'modify':
+                if found_entry:
+                    update_repo, response = replace_entry(entry, content, attachments)
+                else:
+                    response = str(entry)
             update_repo = True
         elif command == 'new':
             if argument:
@@ -352,16 +375,7 @@ class KitchenLog:
 
             new = self.new_entry(date)
             if found_entry:
-                try:
-                    new.reload(content, True)
-                    for attachment in attachments:
-                        attachment_raw = attachment.get_payload(decode=True)
-                        filename = decode_multiple(attachment.get_filename())
-                        new.attach_media(filename, attachment_raw)
-                except ValueError as e:
-                    return error_respond('Parser error: %s\n\nOriginal mail below\n--\n\n%s' % (str(e), content))
-                response = mail_success(recipient, str(new))
-                update_repo = True
+                update_repo, response = replace_entry(new, content, attachments)
             else:
                 response = mail_new(recipient, str(new))
         else:
