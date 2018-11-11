@@ -83,12 +83,16 @@ subject line of your email, which contains a command and an optional date, and,
 depending on the command, some formatted content in the body of the mail.
 
 This is the list of available commands:
+  delete no
   info / help
   list
   new [date in Y-m-d format]
 
+delete:
+  Will remove the kitchen log entry that is provided as an argument.
+
 info:
-  shows you this page
+  shows you this page. The ids can be used for other commands.
 
 list:
   return a list of all entries
@@ -114,6 +118,15 @@ mail_list_template = \
 """
 Please choose one of the following entries:
 """
+
+mail_delete_ok_template = \
+"""
+entry succesfully deleted. Find the content of the old entry below.
+"""
+
+
+def mail_delete_ok(recipient, old):
+    return mail_greeting % recipient + mail_delete_ok_template + mail_footer + '\n--\n' + str(old)\
 
 
 def mail_list(recipient, entries):
@@ -317,6 +330,18 @@ class KitchenLog:
                 entries.append((i, entry.shortlog))
 
             response = mail_list(recipient, entries)
+        elif command == 'delete':
+            if False in [x.isnumeric() for x in argument]:
+                error_respond('Not an integer: %s' % argument)
+
+            no = int(argument)
+            if no >= len(self._entries):
+                error_respond('Index out of bound: %d' % no)
+
+            entry = self._entries[no]
+            entry.remove()
+            response = mail_delete_ok(recipient, str(entry))
+            update_repo = True
         elif command == 'new':
             if argument:
                 date = parse_ymd(split_subject[1])
