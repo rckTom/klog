@@ -110,7 +110,7 @@ def interactive_edit(klog):
     else:
         print('Found %d entries for %s. Choose wisely.' % (len(entries), format_ymd(args.date)))
         for no, entry in enumerate(entries):
-            print('  %d: %s (%s)' % (no, entry.date, entry.topic))
+            print('  %d: %s' % (no, entry.shortlog))
         print('  n: (n)ew entry')
         print('  x: e(x)it')
         choice = prompt([str(x) for x in range(0, len(entries))] + ['n'], 'x')

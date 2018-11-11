@@ -138,6 +138,10 @@ class LogEntry:
         return self._begin
 
     @property
+    def shortlog(self):
+        return '%s: %s' % (self.date, self.topic)
+
+    @property
     def fname(self):
         return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._no
 
