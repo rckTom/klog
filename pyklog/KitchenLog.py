@@ -273,12 +273,10 @@ class KitchenLog:
         split_subject = subject.split(' ')
         if len(split_subject) == 1:
             command = split_subject[0]
-            date = datetime.datetime.today()
+            argument = None
         elif len(split_subject) == 2:
             command = split_subject[0]
-            date = parse_ymd(split_subject[1])
-            if not date:
-                return error_respond('Invalid date format: %s' % split_subject[1])
+            argument = split_subject[1]
         else:
             return error_respond('Invalid command: ' % subject)
 
@@ -320,6 +318,13 @@ class KitchenLog:
 
             response = mail_list(recipient, entries)
         elif command == 'new':
+            if argument:
+                date = parse_ymd(split_subject[1])
+                if not date:
+                    return error_respond('Invalid date format: %s' % split_subject[1])
+            else:
+                date = datetime.datetime.today()
+
             new = self.new_entry(date)
             if found_entry:
                 try:
