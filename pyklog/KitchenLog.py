@@ -84,10 +84,14 @@ depending on the command, some formatted content in the body of the mail.
 
 This is the list of available commands:
   info / help
+  list
   new [date in Y-m-d format]
 
 info:
   shows you this page
+
+list:
+  return a list of all entries
 
 new:
   create a new entry.
@@ -105,6 +109,18 @@ mail_success_template = \
 your entry was successfully added and will appear on the wiki soon. Thanks for
 choosing Deutsche Bahn again! Exit on the left hand side.
 """
+
+mail_list_template = \
+"""
+Please choose one of the following entries:
+"""
+
+
+def mail_list(recipient, entries):
+    ret = (mail_greeting % recipient + mail_list_template).split('\n')
+    ret += ['  %d: %s' % x for x in entries]
+    ret.append(mail_footer)
+    return '\n'.join(ret)
 
 
 def mail_success(recipient, new):
@@ -199,6 +215,7 @@ class KitchenLog:
         target_entries = [x[(len(self._directory) + 1):] for x in target_entries]
         self._entries = [load_entry(self._directory, x) for x in target_entries]
         self._entries = list(filter(None, self._entries))
+        self._entries.sort(key=lambda x: x.date, reverse=True)
 
     def commit(self):
         list(map(lambda x: x.save(), [x for x in self._entries if x.dirty]))
@@ -296,6 +313,12 @@ class KitchenLog:
         command = command.lower()
         if command in ['info', 'help']:
             response = mail_info(recipient)
+        elif command == 'list':
+            entries = list()
+            for i, entry in enumerate(self._entries):
+                entries.append((i, entry.shortlog))
+
+            response = mail_list(recipient, entries)
         elif command == 'new':
             new = self.new_entry(date)
             if found_entry:
