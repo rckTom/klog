@@ -57,7 +57,7 @@ def normalise_subject(mail):
     return re.match(r'(.*: )*(.*)', mail['SUBJECT']).group(2)
 
 
-def respond_email(mail, subject, response):
+def respond_email(address_from, mail, subject, response):
     msg = MIMEText(response)
 
     if 'Reply-To' in mail:
@@ -65,7 +65,7 @@ def respond_email(mail, subject, response):
     else:
         msg['To'] = mail['from']
 
-    msg['From'] = mail['To']
+    msg['From'] = address_from
     msg['Subject'] = 'Re: %s' % subject
     msg['In-Reply-To'] = mail['Message-ID']
     msg['References'] = mail['Message-ID']
@@ -167,13 +167,13 @@ class KitchenLog:
         lp = landing_page.render(content=years)
         save_filename(lp, join(target_path, 'start.txt'))
 
-    def handle_email(self, mail):
+    def handle_email(self, address_from, mail):
         mail = email.message_from_bytes(mail)
         subject = normalise_subject(mail)
         update_repo = False
 
         def error_respond(message):
-            return False, respond_email(mail, 'Error: %s' % subject, message)
+            return False, respond_email(address_from, mail, 'Error: %s' % subject, message)
 
         split_subject = subject.split(' ')
         if len(split_subject) == 1:
@@ -234,4 +234,4 @@ class KitchenLog:
         else:
             return error_respond('Unknown command: %s' % command)
 
-        return update_repo, respond_email(mail, 'OK: %s' % subject, response)
+        return update_repo, respond_email(address_from, mail, 'OK: %s' % subject, response)
