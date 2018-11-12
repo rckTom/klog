@@ -363,7 +363,7 @@ class KitchenLog:
                 if found_entry:
                     update_repo, response = replace_entry(entry, content, attachments)
                 else:
-                    response = str(entry)
+                    response = str(entry) + '\n' + mail_end_marker
             update_repo = True
         elif command == 'new':
             if argument:
