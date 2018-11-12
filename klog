@@ -54,7 +54,7 @@ update_trigger = https://wiki.vmexit.de/wiki/update.php
 
 # The following variables are only required for email handler of klog
 # smtp_server = localhost
-# email_name = Kitchen log bot <kitchenlog@vmexit.de>
+# email_name = klog bot <kitchenlog@vmexit.de>
 """
 
 
