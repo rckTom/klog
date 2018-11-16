@@ -282,6 +282,18 @@ class KitchenLog:
         self._entries.append(entry)
         return entry
 
+    def years_dict(self):
+        dates = {entry.date_raw for entry in self._entries}
+        years = dict()
+        for year in {x.year for x in dates}:
+            years[year] = {
+                x.month:
+                    [entry for entry in self._entries
+                     if entry.date_raw.year == year and entry.date_raw.month == x.month]
+                for x in dates
+                if x.year == year}
+        return years
+
     def export_dokuwiki(self, target_path):
         # delete old data
         target_entries = glob(join(target_path, 'entry', KitchenLog.FILES_GLOB))
@@ -292,15 +304,7 @@ class KitchenLog:
         for entry in self._entries:
             entry.to_dokuwiki(target_path)
 
-        dates = {entry.date_raw for entry in self._entries}
-        years = dict()
-        for year in {x.year for x in dates}:
-            years[year] = {
-                x.month:
-                    [entry for entry in self._entries
-                     if entry.date_raw.year == year and entry.date_raw.month == x.month]
-                for x in dates
-                if x.year == year}
+        years = self.years_dict()
 
         for year, months in years.items():
             for month, entries in months.items():
