@@ -18,10 +18,8 @@ details.
 """
 
 import argparse
-import configparser
 import datetime
 import os
-import git
 import subprocess
 import smtplib
 import tempfile
@@ -39,7 +37,7 @@ except ImportError:
 
 from locale import setlocale, LC_ALL
 
-from pyklog.KitchenLog import KitchenLog
+from pyklog.KitchenLog import KitchenLog, Config
 from pyklog.LogEntry import parse_ymd, format_ymd
 
 f_config = os.path.join(os.environ['HOME'], '.config', 'klogrc')
@@ -182,40 +180,15 @@ if not os.path.isfile(f_config):
         f.write(config)
     print('File saved as %s' % f_config)
 
-# Load config
-config = configparser.ConfigParser()
-config.read(f_config)
-
-try:
-    d_cache = config.get('klog', 'cache')
-    kitchenlog_uri = config.get('klog', 'kitchenlog')
-    update_trigger = config.get('klog', 'update_trigger')
-
-    if args.from_email:
-        smtp_server = config.get('klog', 'smtp_server')
-        email_name = config.get('klog', 'email_name')
-except configparser.NoOptionError as e:
-    eprint('Missing %s in your config' % e.message)
-    quit(-1)
-
-d_cache = os.path.expanduser(d_cache)
-d_repo = os.path.join(d_cache, 'kitchenlog')
-
-os.makedirs(d_cache, exist_ok=True)
-
-# Check if local repo clone exists
-if not os.path.isdir(d_repo):
-    print('Cloning into %s...' % kitchenlog_uri)
-    repo = git.Repo.clone_from(kitchenlog_uri, d_repo)
-else:
-    repo = git.Repo(d_repo)
+cfg = Config(f_config, args.from_email)
+repo = cfg.repo
 
 # Update repository
 if not args.no_sync:
     print('Updating repo...')
     repo.remote('origin').pull()
 
-klog = KitchenLog(d_repo)
+klog = KitchenLog(cfg.d_repo)
 
 update_repo = False
 
@@ -225,7 +198,7 @@ if args.generate:
     quit()
 elif args.from_email:
     mail = open(args.from_email, 'rb').read()
-    update_repo, response = klog.handle_email(email_name, mail)
+    update_repo, response = klog.handle_email(cfg.email_name, mail)
     s = smtplib.SMTP('localhost')
     s.send_message(response)
     s.quit()
@@ -240,6 +213,6 @@ if update_repo:
         repo.git.push('origin')
 
     try:
-        urllib.request.urlopen(update_trigger)
+        urllib.request.urlopen(cfg.update_trigger)
     except Exception as e:
         print('Update trigger error: %s' % str(e))

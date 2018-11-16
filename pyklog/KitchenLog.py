@@ -15,10 +15,12 @@ FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 details.
 """
 
-from os import remove
+from os import remove, makedirs
 
+import configparser
 import datetime
 import email
+import git
 import re
 
 from email.mime.text import MIMEText
@@ -26,7 +28,7 @@ from email.header import decode_header
 
 from glob import glob
 from jinja2 import Template
-from os.path import join, normpath
+from os.path import join, normpath, expanduser, isdir
 
 from .LogEntry import LogEntry, parse_ymd
 
@@ -222,6 +224,35 @@ def decode_multiple(encoded, _pattern=quopri_entry):
     fixed = '\r\n'.join(_pattern.findall(encoded))
     output = [b.decode(c) for b, c in decode_header(fixed)]
     return ''.join(output)
+
+
+class Config:
+    def __init__(self, filename, needs_email):
+        config = configparser.ConfigParser()
+        config.read(filename)
+        try:
+            self.d_cache = config.get('klog', 'cache')
+            self.kitchenlog_uri = config.get('klog', 'kitchenlog')
+            self.update_trigger = config.get('klog', 'update_trigger')
+
+            if needs_email:
+                self.smtp_server = config.get('klog', 'smtp_server')
+                self.email_name = config.get('klog', 'email_name')
+        except configparser.NoOptionError as e:
+            print('Missing %s in your config' % e.message)
+            quit(-1)
+
+        self.d_cache = expanduser(self.d_cache)
+        self.d_repo = join(self.d_cache, 'kitchenlog')
+
+        makedirs(self.d_cache, exist_ok=True)
+
+        # Check if local repo clone exists
+        if not isdir(self.d_repo):
+            print('Cloning into %s...' % self.kitchenlog_uri)
+            self.repo = git.Repo.clone_from(self.kitchenlog_uri, self.d_repo)
+        else:
+            self.repo = git.Repo(self.d_repo)
 
 
 class KitchenLog:
