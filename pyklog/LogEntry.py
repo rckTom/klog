@@ -138,6 +138,10 @@ class LogEntry:
         return self._begin
 
     @property
+    def end(self):
+        return self._end
+
+    @property
     def shortlog(self):
         return '%s: %s' % (self.date, self.topic)
 
