@@ -272,6 +272,11 @@ class KitchenLog:
     def get(self, date):
         return [x for x in self._entries if x._begin == date]
 
+    def get_no(self, no):
+        if no < len(self._entries):
+            return self._entries[no]
+        return None
+
     def new_entry(self, date):
         entry = LogEntry.new(self._directory, date)
         self._entries.append(entry)
