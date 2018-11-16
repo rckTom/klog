@@ -131,7 +131,7 @@ entry succesfully deleted. Find the content of the old entry below.
 
 
 def mail_delete_ok(recipient, old):
-    return mail_greeting % recipient + mail_delete_ok_template + mail_footer + '\n--\n' + str(old)\
+    return mail_greeting % recipient + mail_delete_ok_template + mail_footer + '\n--\n' + str(old)
 
 
 def mail_list(recipient, entries):
