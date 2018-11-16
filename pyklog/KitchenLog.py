@@ -38,7 +38,7 @@ landing_page = Template(
 {% for year, months in content|dictsort(reverse=true) -%}
 ===== {{ year }} =====
 {% for month, entries in months|dictsort(reverse=true) -%}
-{% raw %}  {% endraw %}* [[:kitchenlog:{{ year }}-{{ '%02d' % month }}|{{ entries[0].date_raw.strftime('%B') }}]]
+{% raw %}  {% endraw %}* [[:kitchenlog:{{ year }}-{{ '%02d' % month }}|{{ entries[0].begin.strftime('%B') }}]]
 {% endfor %}
 {% endfor %}
 """)
@@ -283,13 +283,13 @@ class KitchenLog:
         return entry
 
     def years_dict(self):
-        dates = {entry.date_raw for entry in self._entries}
+        dates = {entry.begin for entry in self._entries}
         years = dict()
         for year in {x.year for x in dates}:
             years[year] = {
                 x.month:
                     [entry for entry in self._entries
-                     if entry.date_raw.year == year and entry.date_raw.month == x.month]
+                     if entry.begin.year == year and entry.begin.month == x.month]
                 for x in dates
                 if x.year == year}
         return years
@@ -308,7 +308,7 @@ class KitchenLog:
 
         for year, months in years.items():
             for month, entries in months.items():
-                month_rendered = month_page.render(date=entries[0].date_raw)
+                month_rendered = month_page.render(date=entries[0].begin)
                 save_filename(month_rendered, join(target_path, '%d-%02d.txt'% (year, month)))
 
         lp = landing_page.render(content=years)

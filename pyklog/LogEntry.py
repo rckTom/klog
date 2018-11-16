@@ -134,7 +134,7 @@ class LogEntry:
         return format_ymd(self._begin)
 
     @property
-    def date_raw(self):
+    def begin(self):
         return self._begin
 
     @property
