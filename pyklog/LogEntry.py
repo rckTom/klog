@@ -146,6 +146,10 @@ class LogEntry:
         return '%s: %s' % (self.date, self.topic)
 
     @property
+    def content(self):
+        return self._content
+
+    @property
     def fname(self):
         return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._no
 
