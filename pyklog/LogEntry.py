@@ -237,17 +237,22 @@ class LogEntry:
             content = f.read()
         return self.attach_media(basename(filename), content)
 
+    def format_media(self):
+        ret = ''
+        for filename, options in self._media:
+            ret += 'MEDIA: %s' % filename
+            if options:
+                ret += ', %s' % options
+            ret += '\n'
+        return ret
+
     def __str__(self):
         ret = ''
         ret += 'BEGIN: %s\n' % format_ymd(self._begin)
         ret += 'END: %s\n' % format_ymd(self._end)
         ret += 'TOPIC: %s\n' % format_defval(self._headers['TOPIC'])
         ret += 'APPENDIX: %s\n' % format_defval(self._headers['APPENDIX'])
-        for filename, options in self._media:
-            ret += 'MEDIA: %s' % filename
-            if options:
-                ret += ', %s' % options
-            ret += '\n'
+        ret += self.format_media()
         ret += '\n'
         ret += self._content
 
