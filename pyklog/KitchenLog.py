@@ -273,6 +273,9 @@ class KitchenLog:
     def __init__(self, repo):
         self.repo = repo
         self._directory = normpath(repo.working_dir)
+        self._reload()
+
+    def _reload(self):
         target_entries = glob(join(self._directory, KitchenLog.FILES_GLOB))
         target_entries = [x[(len(self._directory) + 1):] for x in target_entries]
         self._entries = [load_entry(self._directory, x) for x in target_entries]
@@ -290,6 +293,8 @@ class KitchenLog:
         self.repo.git.commit('--allow-empty', '-m', message)
         if not no_sync:
             self.repo.git.push('origin')
+
+        self._reload()
 
     def get(self, date):
         return [x for x in self._entries if x._begin == date]
