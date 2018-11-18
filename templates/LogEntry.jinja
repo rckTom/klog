@@ -1,0 +1,31 @@
+{% macro modify_entry(target, entry, label, allow_remove) -%}
+<form action="{{ target }}" method="post">
+    <label>Begin: </label>
+    <input name="begin" type="text" class="form-inline" value="{{ entry.begin_ymd }}">
+    <br>
+
+    <label>End: </label>
+    <input name="end" type="text" class="form-inline" value="{{ entry.end_ymd }}">
+    <br>
+
+    <label>Topic: </label>
+    <input name="topic" type="text" class="form-inline" value="{{ entry.topic }}">
+
+    <br>
+    <label>Appendix: </label>
+    <input name="appendix" type="text" class="form-inline" value="{{ entry.appendix or 'None' }}">
+
+    <br>
+<textarea name="content" class="form-control" rows="20">
+{{ entry.format_media() }}
+{{ entry.content }}
+</textarea>
+    <br>
+
+    <input type="submit" class="btn btn-primary" value="{{ label }}">
+    {% if allow_remove %}
+    <input name="remove" type="submit" class="btn btn-warning" value="Remove">
+    {% endif %}
+    <a href="/list"><button type="button" class="btn btn-danger">Cancel</button></a>
+</form>
+{%- endmacro %}

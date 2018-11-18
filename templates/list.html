@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% set pagetitle = "BK klog -- list" %}
+{% block content %}
+Welcome to the frontend of the Binary Kitchen klog subsystem
+
+{% if info %}
+<div class="alert alert-{{ info[1] }}" role="alert">
+    {{ info[0] }}
+</div>
+{% endif %}
+{% set count = namespace(a=0) %}
+{% for year, months in content|dictsort(reverse=true) -%}
+    <h2 class="page-header">{{ year }}</h2>
+    <div class="level2">
+    {% for month, entries in months|dictsort(reverse=true) -%}
+        <h3 class="page-header">{{ entries[0].begin.strftime('%B') }}</h3>
+        <ul>
+        {% for entry in entries %}
+            <li><a href="/modify?id={{ count.a }}"><b>{{ entry.begin_ymd }}:</b> {{ entry.topic }}</a></li>
+            {% set count.a = count.a + 1 %}
+        {% endfor %}
+        </ul>
+    {% endfor %}
+    </div>
+{% endfor %}
+
+{% endblock %}

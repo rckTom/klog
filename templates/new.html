@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% import "LogEntry.jinja" as m %}
+
+{% set pagetitle = "BK klog -- new entry" %}
+{% block content %}
+{% if info %}
+<div class="alert alert-{{ info[1] }}" role="alert">
+{{ info[0] }}
+</div>
+{% endif %}
+{{ m.modify_entry('/new', template, 'Create', False) }}
+{% endblock %}
