@@ -130,8 +130,12 @@ class LogEntry:
         return self._headers['TOPIC']
 
     @property
-    def date(self):
+    def begin_ymd(self):
         return format_ymd(self._begin)
+
+    @property
+    def end_ymd(self):
+        return format_ymd(self._end)
 
     @property
     def begin(self):
@@ -143,7 +147,7 @@ class LogEntry:
 
     @property
     def shortlog(self):
-        return '%s: %s' % (self.date, self.topic)
+        return '%s: %s' % (self.begin_ymd, self.topic)
 
     @property
     def content(self):
@@ -273,6 +277,13 @@ class LogEntry:
             f.write(self.generate_dokuwiki())
 
     @staticmethod
+    def sanitise_entry(log_entry):
+        log_entry = log_entry.replace('\r', '')
+        log_entry = '\n'.join([x.rstrip() for x in log_entry.split('\n')])
+        log_entry = log_entry.rstrip() + '\n'
+        return log_entry
+
+    @staticmethod
     def try_parse(log_entry):
         media = list()
         headers = dict()
@@ -281,6 +292,8 @@ class LogEntry:
 
         if not log_entry:
             raise ValueError('file is empty')
+
+        log_entry = LogEntry.sanitise_entry(log_entry)
 
         try:
             headers_raw, content = log_entry.split('\n\n', 1)

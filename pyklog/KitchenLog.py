@@ -264,7 +264,7 @@ class KitchenLog:
         target_entries = [x[(len(self._directory) + 1):] for x in target_entries]
         self._entries = [load_entry(self._directory, x) for x in target_entries]
         self._entries = list(filter(None, self._entries))
-        self._entries.sort(key=lambda x: x.date, reverse=True)
+        self._entries.sort(key=lambda x: x.begin, reverse=True)
 
     def commit(self):
         list(map(lambda x: x.save(), [x for x in self._entries if x.dirty]))
