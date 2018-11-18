@@ -22,6 +22,7 @@ import datetime
 import email
 import git
 import re
+import urllib.request
 
 from email.mime.text import MIMEText
 from email.header import decode_header
@@ -233,7 +234,7 @@ class Config:
         try:
             self.d_cache = config.get('klog', 'cache')
             self.kitchenlog_uri = config.get('klog', 'kitchenlog')
-            self.update_trigger = config.get('klog', 'update_trigger')
+            self._update_trigger = config.get('klog', 'update_trigger')
 
             if needs_email:
                 self.smtp_server = config.get('klog', 'smtp_server')
@@ -258,6 +259,12 @@ class Config:
         if sync:
             print('Updating repo...')
             self.repo.remote('origin').pull()
+
+    def update_trigger(self):
+        try:
+            urllib.request.urlopen(self._update_trigger)
+        except Exception as e:
+            print('Update trigger error: %s' % str(e))
 
 
 class KitchenLog:

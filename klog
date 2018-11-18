@@ -27,7 +27,6 @@ import termios
 import tty
 import sys
 import time
-import urllib.request
 
 try:
     import easygui
@@ -200,7 +199,4 @@ else:
 
 if update_repo:
     klog.commit('Modified %s' % format_ymd(args.date), args.no_sync)
-    try:
-        urllib.request.urlopen(cfg.update_trigger)
-    except Exception as e:
-        print('Update trigger error: %s' % str(e))
+    cfg.update_trigger()
