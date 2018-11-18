@@ -30,7 +30,7 @@ from glob import glob
 from jinja2 import Template
 from os.path import join, normpath, expanduser, isdir
 
-from .LogEntry import LogEntry, parse_ymd
+from .LogEntry import LogEntry, parse_ymd, format_ymd
 
 landing_page = Template(
 """====== Küchen-Log ======
@@ -227,7 +227,7 @@ def decode_multiple(encoded, _pattern=quopri_entry):
 
 
 class Config:
-    def __init__(self, filename, needs_email):
+    def __init__(self, filename, needs_email, sync):
         config = configparser.ConfigParser()
         config.read(filename)
         try:
@@ -254,20 +254,35 @@ class Config:
         else:
             self.repo = git.Repo(self.d_repo)
 
+        # Update repository
+        if sync:
+            print('Updating repo...')
+            self.repo.remote('origin').pull()
+
 
 class KitchenLog:
     FILES_GLOB = join('20*', '*', '*.txt')
 
-    def __init__(self, directory):
-        self._directory = normpath(directory)
+    def __init__(self, repo):
+        self.repo = repo
+        self._directory = normpath(repo.working_dir)
         target_entries = glob(join(self._directory, KitchenLog.FILES_GLOB))
         target_entries = [x[(len(self._directory) + 1):] for x in target_entries]
         self._entries = [load_entry(self._directory, x) for x in target_entries]
         self._entries = list(filter(None, self._entries))
         self._entries.sort(key=lambda x: x.begin, reverse=True)
 
-    def commit(self):
-        list(map(lambda x: x.save(), [x for x in self._entries if x.dirty]))
+    def commit(self, message, no_sync=False):
+        dirty = [x for x in self._entries if x.dirty]
+        if len(dirty) == 0:
+            return
+
+        list(map(lambda x: x.save(), dirty))
+
+        self.repo.git.add('-A')
+        self.repo.git.commit('--allow-empty', '-m', message)
+        if not no_sync:
+            self.repo.git.push('origin')
 
     def get(self, date):
         return [x for x in self._entries if x._begin == date]
