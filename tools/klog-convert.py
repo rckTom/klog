@@ -26,7 +26,7 @@ from shutil import copyfile
 
 wiki = '/mnt/lokal/@tmp/wiki'
 pages = 'data/pages/kitchenlog'
-output = '/tmp/kitchen'
+output = '/home/ralf/.cache/klog/kitchenlog'
 
 target_media = os.path.join(output, 'media')
 
@@ -150,7 +150,7 @@ def convert_file(filename):
 
     return ret
 
-def generate_medium(medium):
+def generate_medium(index, date, medium):
     filename, options = medium
 
     real_file = os.path.join(wiki, 'data/media', filename)
@@ -160,18 +160,20 @@ def generate_medium(medium):
 
     base = os.path.basename(real_file)
 
-    copyfile(real_file, os.path.join(target_media, base))
+    target_dir = os.path.join(target_media, date.replace('-', '/'), str(index))
+    os.makedirs(target_dir, exist_ok=True)
+    copyfile(real_file, os.path.join(target_dir, base))
 
     if options == '':
         return filename
     return '%s, %s' % (base, options)
 
-def generate_entry(entry):
+def generate_entry(index, entry):
     date, topic, content, media = entry
     media_header = ''
 
     for medium in media:
-        media_header += '\nMEDIA: %s' % generate_medium(medium)
+        media_header += '\nMEDIA: %s' % generate_medium(index, date[0], medium)
 
     ret = \
 """BEGIN: %s
@@ -207,4 +209,4 @@ for date, entries in log_entries.items():
     for index, entry in enumerate(entries):
         filename = '%s-%d.txt' % (d, index)
         with open(os.path.join(target_dir, filename), 'w') as f:
-            f.write(generate_entry(entry))
+            f.write(generate_entry(index, entry))
