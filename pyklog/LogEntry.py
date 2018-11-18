@@ -20,7 +20,6 @@ from jinja2 import Template
 from os.path import join, isfile, split
 from os import makedirs, remove
 from os.path import splitext, dirname, basename
-from shutil import copyfile
 
 dokuwiki_log_template = Template(
 """===== {{ topic }}: {{ date }} =====
