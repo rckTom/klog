@@ -21,6 +21,17 @@
 </textarea>
     <br>
 
+    {% if entry.has_media %}
+    <h2>Attachments</h2>
+    Check to remove
+    <hr/>
+    {% for media in entry.media %}
+    <img src="{{ entry.media_url(media) }}" width="400px"/>
+    <input class="form-check-input" type="checkbox" value="" name="remove_{{ loop.index - 1 }}">
+    <hr>
+    {% endfor %}
+    {% endif %}
+
     <input type="submit" class="btn btn-primary" value="{{ label }}">
     {% if allow_remove %}
     <input name="remove" type="submit" class="btn btn-warning" value="Remove">

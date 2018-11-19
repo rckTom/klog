@@ -88,6 +88,13 @@ def modify():
     if not entry:
         return list()
 
+    removals = [x.replace('remove_', '') for x in request.form.keys() if x.startswith('remove_')]
+    try:
+        removals = [int(x) for x in removals]
+        removals = [x for x in removals if x < len(entry.media)]
+    except ValueError:
+        removals = list()
+
     entry_form = EntryForm(request.form, csrf_enabled=False)
     if entry_form.validate():
         entry_raw = entry_form.convert()
@@ -98,10 +105,12 @@ def modify():
             cfg.update_trigger()
             info = 'Entry successfully removed', 'success'
             return render_template('list.html', info=info, content=klog.years_dict())
-        elif entry_raw == str(entry):
+        elif entry_raw == str(entry) and len(removals) == 0:
             info = 'Nothing changed', 'warning'
         else:
             try:
+                for removal in removals:
+                    entry.remove_media(removal)
                 entry.reload(entry_raw, True)
                 info = 'success', 'success'
                 klog.commit('Modified %s ' % entry.shortlog)
