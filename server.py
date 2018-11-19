@@ -56,6 +56,7 @@ class EntryForm(FlaskForm):
 END: %s
 TOPIC: %s
 APPENDIX: %s
+
 %s
 """ % (self.begin.data,
        self.end.data,

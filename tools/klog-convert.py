@@ -170,19 +170,18 @@ def generate_medium(index, date, medium):
 
 def generate_entry(index, entry):
     date, topic, content, media = entry
-    media_header = ''
 
     for medium in media:
-        media_header += '\nMEDIA: %s' % generate_medium(index, date[0], medium)
+        generate_medium(index, date[0], medium)
 
     ret = \
 """BEGIN: %s
 END: %s
 TOPIC: %s
-APPENDIX: %s%s
+APPENDIX: %s
 
 %s
-""" % (date[0], date[1], topic, date[2], media_header, content)
+""" % (date[0], date[1], topic, date[2], content)
 
     return ret
 

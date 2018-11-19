@@ -16,6 +16,8 @@ details.
 """
 
 from datetime import datetime
+from glob import glob
+
 from jinja2 import Template
 from os.path import join, isfile, split
 from os import makedirs, remove
@@ -26,12 +28,11 @@ dokuwiki_log_template = Template(
 {{ content }}
 {{ media }}
 """)
-image_url = 'https://raw.githubusercontent.com/Binary-Kitchen/kitchenlog/master/media/'
+image_url = 'https://raw.githubusercontent.com/Binary-Kitchen/kitchenlog/master/'
 
 log_entry_template = Template(
 """# Nach den headern muss eine Leerzeile folgen. Alle header sind anpassbar.
-# Wird ein MEDIA header entfernt, so wird der Anhang gelöscht. Das Speichern
-# einer leeren Datei löscht den Eintrag.
+# Das Speichern einer leeren Datei löscht den Eintrag.
 BEGIN: {{ today }}
 END: None
 TOPIC: Küchenzeit
@@ -41,10 +42,6 @@ APPENDIX: None
 
 """
 )
-
-
-def media2filenames(media):
-    return {x[0] for x in media}
 
 
 def parse_defval(value):
@@ -61,17 +58,6 @@ def parse_ymd(value):
         except ValueError:
             return None
     return value
-
-
-def parse_medium(value):
-    value = value.split(', ')
-
-    if len(value) == 1:
-        return value[0], None
-    elif len(value) == 2:
-        return value[0], value[1]
-    else:
-        raise ValueError('Unknown media format: %s' % value)
 
 
 def format_defval(value):
@@ -101,28 +87,33 @@ def generate_wikidate(begin, end):
     return format_german_date(begin, True)
 
 
-def generate_wikimedia(media):
-    ret = ''
-    for image, options in media:
-        ret += '{{ %s/%s }}\n' % (image_url, image)
-    return ret
-
-
 class LogEntry:
-    def __init__(self, content, directory):
+    def __init__(self, content, index, directory):
         self._remove = False
         self._filename = None
         self._filename_date = None
         self._dirty = False
-        self._media = list()
         self._directory = directory
         self._removed_media = set()
         self._added_media = set()
-        self._begin, self._end, self._headers, self._content, self._media = LogEntry.try_parse(content)
+        self._index = index
+        self._begin, self._end, self._headers, self._content, = LogEntry.try_parse(content)
+
+        media = glob(join(self._directory, self.mediadir, '*'))
+        self._media = [basename(x) for x in media]
+
 
     @property
     def dirty(self):
         return self._dirty or (self._begin != self._filename_date)
+
+    @property
+    def has_media(self):
+        return len(self._media) > 0
+
+    @property
+    def media(self):
+        return self._media
 
     @property
     def topic(self):
@@ -153,15 +144,19 @@ class LogEntry:
         return self._content
 
     @property
+    def mediadir(self):
+        return join('media', self._begin.strftime('%Y/%m/%d'), str(self._index))
+
+    @property
     def fname(self):
-        return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._no
+        return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._index
 
     def set_filename(self, filename):
         self._filename = filename
 
         path, base = split(filename)
         base = splitext(base)[0]
-        day, self._no = [int(x) for x in base.split('-')]
+        day, self._index = [int(x) for x in base.split('-')]
 
         path, month = split(path)
         _ , year = split(path)
@@ -169,30 +164,17 @@ class LogEntry:
         self._filename_date = parse_ymd('%s-%s-%s' % (year, month, day))
 
     def reload(self, log_entry, dirty):
-        new_entry = LogEntry.try_parse(log_entry)
-        new_media = new_entry[4]
-
-        new_files = media2filenames(new_media)
-        old_files = media2filenames(self._media)
-
-        added = new_files - old_files
-        self._removed_media |= old_files - new_files
-
-        if len(added):
-            raise ValueError('direct adding of media is not supported')
-        for media in self._removed_media:
-            print('Removed media %s' % media)
-
         self._dirty = dirty
-        self._begin, self._end, self._headers, self._content, self._media = new_entry
+        self._begin, self._end, self._headers, self._content = LogEntry.try_parse(log_entry)
 
     def save(self):
+        mdir = join(self._directory, self.mediadir)
         if self._remove:
             if not self._filename:
                 return
-            for media in media2filenames(self._media):
+            for media in self._media:
                 print('Removing media %s' % media)
-                remove(join(self._directory, 'media', media))
+                remove(join(mdir, media))
             print('Removing %s' % self.fname)
             remove(self._filename)
             return
@@ -202,11 +184,12 @@ class LogEntry:
             self._filename = None
 
         if self._filename is None:
-            self._no = 0
+            self._index = 0
             while isfile(join(self._directory, self.fname)):
-                self._no += 1
+                self._index += 1
 
             self.set_filename(join(self._directory, self.fname))
+            mdir = join(self._directory, self.mediadir)
 
         print('Saving %s' % self.fname)
         # ensure the underlying directory is existing
@@ -216,15 +199,25 @@ class LogEntry:
 
         for media in self._removed_media:
             print('Removing media %s' % media)
-            remove(join(self._directory, 'media', media))
+            remove(join(mdir, media))
+
+        if len(self._added_media):
+            makedirs(mdir, exist_ok=True)
 
         for name, content in self._added_media:
-            filename = join(self._directory, 'media', name)
+            filename = join(mdir, name)
             with open(filename, 'wb') as f:
                 f.write(content)
 
         self._added_media = set()
         self._removed_media = set()
+
+    def remove_media(self, no):
+        if no >= len(self._media):
+            return
+
+        victim = self._media.pop(no)
+        self._removed_media.add(victim)
 
     def remove(self):
         self._dirty = True
@@ -232,7 +225,7 @@ class LogEntry:
 
     def attach_media(self, name, content):
         # TBD support attachment options
-        self._media.append((name, None))
+        self._media.append(name)
         self._added_media.add((name, content))
 
     def attach_media_by_file(self, filename):
@@ -240,33 +233,30 @@ class LogEntry:
             content = f.read()
         return self.attach_media(basename(filename), content)
 
-    def format_media(self):
-        ret = ''
-        for filename, options in self._media:
-            ret += 'MEDIA: %s' % filename
-            if options:
-                ret += ', %s' % options
-            ret += '\n'
-        return ret
-
     def __str__(self):
         ret = ''
         ret += 'BEGIN: %s\n' % format_ymd(self._begin)
         ret += 'END: %s\n' % format_ymd(self._end)
         ret += 'TOPIC: %s\n' % format_defval(self._headers['TOPIC'])
         ret += 'APPENDIX: %s\n' % format_defval(self._headers['APPENDIX'])
-        ret += self.format_media()
         ret += '\n'
         ret += self._content
 
         return ret
 
+    def media_url(self, media):
+        return '%s/%s/%s' % (image_url, self.mediadir, media)
+
     def generate_dokuwiki(self):
+        media = ''
+        for image in self._media:
+            media += '{{ %s }}\n' % self.media_url(image)
+
         return dokuwiki_log_template.render(date = generate_wikidate(self._begin, self._end),
                                             topic = self._headers['TOPIC'],
                                             appendix = self._headers['APPENDIX'],
                                             content = self._content,
-                                            media = generate_wikimedia(self._media))
+                                            media = media)
 
     def to_dokuwiki(self, target_directory):
         target = join(target_directory, 'entry', self.fname)
@@ -284,7 +274,6 @@ class LogEntry:
 
     @staticmethod
     def try_parse(log_entry):
-        media = list()
         headers = dict()
         begin = None
         end = None
@@ -307,8 +296,6 @@ class LogEntry:
                 begin = parse_ymd(value)
             elif key == 'END':
                 end = parse_ymd(value)
-            elif key == 'MEDIA':
-                media.append(parse_medium(value))
             else:
                 headers[key] = parse_defval(value)
 
@@ -322,7 +309,7 @@ class LogEntry:
         if not content:
             raise ValueError('Empty content')
 
-        return begin, end, headers, content, media
+        return begin, end, headers, content
 
     @staticmethod
     def from_file(directory, file):
@@ -330,7 +317,9 @@ class LogEntry:
         with open(filename, 'r') as f:
             content = f.read()
 
-        entry = LogEntry(content, directory)
+        index = int(file.rstrip('.txt').split('/')[2].split('-')[1])
+
+        entry = LogEntry(content, index, directory)
         entry.set_filename(filename)
 
         return entry
@@ -338,4 +327,4 @@ class LogEntry:
     @staticmethod
     def new(directory, date):
         template = log_entry_template.render(today = format_ymd(date))
-        return LogEntry(template, directory)
+        return LogEntry(template, 0, directory)

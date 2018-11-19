@@ -136,15 +136,26 @@ def interactive_edit(klog):
                 target_entry.reload(new, True)
 
                 if has_gui:
-                    print('Any media/attachments, sir? y/N')
-                    while prompt_yn() == 'y':
-                        media = easygui.fileopenbox()
-                        if not media or not os.path.isfile(media):
-                            print('not a valid file')
-                        else:
-                            target_entry.attach_media_by_file(media)
-                        print('Yet another one? y/N')
-
+                    print('Any media/attachments updates, sir? y/N')
+                    if prompt_yn() == 'y':
+                        print('Press n for new attachments, and the number to delete?')
+                        while True:
+                            for no, media in enumerate(target_entry.media):
+                                print('  %d: %s' % (no, media))
+                            print('  n: (n)ew')
+                            print('  x: e(x)it')
+                            choice = prompt([str(x) for x in range(0, len(target_entry.media))] + ['n'], 'x')
+                            if choice != 'x' and choice != 'n':
+                                choice = int(choice)
+                                target_entry.remove_media(choice)
+                            elif choice == 'n':
+                                media = easygui.fileopenbox()
+                                if not media or not os.path.isfile(media):
+                                    print('not a valid file')
+                                else:
+                                    target_entry.attach_media_by_file(media)
+                            elif choice == 'x':
+                                break
             retry = False
         except ValueError as e:
             print(str(e))
