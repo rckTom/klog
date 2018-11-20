@@ -24,9 +24,12 @@ from os import makedirs, remove
 from os.path import splitext, dirname, basename
 
 dokuwiki_log_template = Template(
-"""===== {{ topic }}: {{ date }} =====
-{{ content }}
-{{ media }}
+"""===== {{ content.topic }}: {{ content.wikidate }} {% if content.appendix %}({{ content.appendix }}){% endif %} =====
+{{ content.content }}
+{% if content.has_media %}
+==== Bilder ====
+{{ content.gallery }}
+{% endif %}
 """)
 image_url = 'https://raw.githubusercontent.com/Binary-Kitchen/kitchenlog/master/'
 
@@ -79,14 +82,6 @@ def format_german_date(dt, print_year):
     return dt.strftime(format)
 
 
-def generate_wikidate(begin, end):
-    if end:
-        begin = format_german_date(begin, False)
-        end = format_german_date(end, True)
-        return '%s bis %s' % (begin, end)
-    return format_german_date(begin, True)
-
-
 class LogEntry:
     def __init__(self, content, index, directory):
         self._remove = False
@@ -120,6 +115,10 @@ class LogEntry:
         return self._headers['TOPIC']
 
     @property
+    def appendix(self):
+        return self._headers['APPENDIX']
+
+    @property
     def begin_ymd(self):
         return format_ymd(self._begin)
 
@@ -150,6 +149,20 @@ class LogEntry:
     @property
     def fname(self):
         return self._begin.strftime('%Y/%m/%d') + '-%d.txt' % self._index
+
+    @property
+    def gallery(self):
+        return '{{gallery>:kitchenlog:%s:%d?direct&lightbox}}' % \
+               (format_ymd(self.begin).replace('-', ':'), self._index)
+
+    @property
+    def wikidate(self):
+        if self.end:
+            begin = format_german_date(self.begin, False)
+            end = format_german_date(self.end, True)
+            return '%s bis %s' % (begin, end)
+        return format_german_date(self.begin, True)
+
 
     def set_filename(self, filename):
         self._filename = filename
@@ -248,15 +261,7 @@ class LogEntry:
         return '%s/%s/%s' % (image_url, self.mediadir, media)
 
     def generate_dokuwiki(self):
-        media = ''
-        for image in self._media:
-            media += '{{ %s }}\n' % self.media_url(image)
-
-        return dokuwiki_log_template.render(date = generate_wikidate(self._begin, self._end),
-                                            topic = self._headers['TOPIC'],
-                                            appendix = self._headers['APPENDIX'],
-                                            content = self._content,
-                                            media = media)
+        return dokuwiki_log_template.render(content=self)
 
     def to_dokuwiki(self, target_directory):
         target = join(target_directory, 'entry', self.fname)
