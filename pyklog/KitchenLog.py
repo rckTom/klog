@@ -288,6 +288,7 @@ class KitchenLog:
             return
 
         list(map(lambda x: x.save(), dirty))
+        self._export_dokuwiki()
 
         self.repo.git.add('-A')
         self.repo.git.commit('--allow-empty', '-m', message)
@@ -321,7 +322,9 @@ class KitchenLog:
                 if x.year == year}
         return years
 
-    def export_dokuwiki(self, target_path):
+    def _export_dokuwiki(self):
+        target_path = join(self._directory, 'dokuwiki')
+        makedirs(target_path, exist_ok=True)
         # delete old data
         target_entries = glob(join(target_path, 'entry', KitchenLog.FILES_GLOB))
         target_entries += glob(join(target_path, '*.txt'))

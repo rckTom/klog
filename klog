@@ -175,7 +175,6 @@ setlocale(LC_ALL, 'de_DE.UTF-8')
 parser = argparse.ArgumentParser(description='klog - Binary Kitchen log cmdline tool.')
 parser.add_argument('date', type=check_date, default=format_ymd(datetime.date.today()), nargs='?',
                     help='date in Y-M-D, default: today')
-parser.add_argument('-g', '--generate', type=str, default=None)
 parser.add_argument('-n', '--no-sync', action='store_true', default=False, help="Don't sync repository")
 parser.add_argument('-e', '--from-email', type=str, default=None, help="Mail receiver")
 args = parser.parse_args()
@@ -195,11 +194,7 @@ klog = KitchenLog(cfg.repo)
 
 update_repo = False
 
-if args.generate:
-    d_dokuwiki = args.generate
-    klog.export_dokuwiki(d_dokuwiki)
-    quit()
-elif args.from_email:
+if args.from_email:
     mail = open(args.from_email, 'rb').read()
     update_repo, response = klog.handle_email(cfg.email_name, mail)
     s = smtplib.SMTP('localhost')
