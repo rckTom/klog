@@ -1,11 +1,11 @@
 {% macro modify_entry(target, entry, label, allow_remove) -%}
 <form action="{{ target }}" method="post">
     <label>Begin: </label>
-    <input name="begin" type="text" class="form-inline" value="{{ entry.begin_ymd }}">
+    <input name="begin" type="date" class="form-inline" value="{{ entry.begin_ymd }}">
     <br>
 
     <label>End: </label>
-    <input name="end" type="text" class="form-inline" value="{{ entry.end_ymd }}">
+    <input name="end" type="date" class="form-inline" value="{{ entry.end_ymd }}">
     <br>
 
     <label>Topic: </label>

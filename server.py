@@ -42,13 +42,22 @@ app = Flask('klog')
 
 class EntryForm(FlaskForm):
     begin = StringField('begin', validators=[DataRequired()])
-    end = StringField('end', validators=[DataRequired()])
+    end = StringField('end')
     topic = StringField('topic', validators=[DataRequired()])
     appendix = StringField('appendix')
     content = StringField('content', validators=[DataRequired()])
 
     def __init__(self, *args, **kwargs):
         FlaskForm.__init__(self, *args, **kwargs)
+
+    def validate(self):
+        if not FlaskForm.validate(self):
+            return False
+
+        if not self.end.data or self.end.data == self.begin.data:
+            self.end.data = 'None'
+
+        return True
 
     def convert(self):
         entry_raw = \
