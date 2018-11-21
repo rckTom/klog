@@ -82,6 +82,10 @@ def format_german_date(dt, print_year):
     return dt.strftime(format)
 
 
+def mediadir(date, index):
+    return join('media', date.strftime('%Y/%m/%d'), str(index))
+
+
 class LogEntry:
     def __init__(self, content, index, directory):
         self._remove = False
@@ -144,7 +148,7 @@ class LogEntry:
 
     @property
     def mediadir(self):
-        return join('media', self._begin.strftime('%Y/%m/%d'), str(self._index))
+        return mediadir(self._begin, self._index)
 
     @property
     def fname(self):
@@ -193,6 +197,11 @@ class LogEntry:
             return
 
         if self._filename_date and self._begin != self._filename_date:
+            for media in self._media:
+                victim = join(self._directory, mediadir(self._filename_date, self._index), media)
+                with open(victim, 'rb') as content:
+                    self._added_media.add((media, content.read()))
+                remove(victim)
             remove(self._filename)
             self._filename = None
 
