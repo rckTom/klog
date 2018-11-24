@@ -1,5 +1,5 @@
 {% macro modify_entry(target, entry, label, allow_remove) -%}
-<form action="{{ target }}" method="post">
+<form enctype="multipart/form-data" action="{{ target }}" method="post">
     <div class="form-group">
         <label for="begin">Begin: </label>
         <input name="begin" class="form-inline" type="date" value="{{ entry.begin_ymd }}">
@@ -25,6 +25,12 @@
     </textarea>
     <br>
 
+    <div class="form-group">
+        <label for="imagefiles">Add Attachments</label>
+        <input type="file" class="form-control-file" name="images" multiple="multiple" id="imagefiles">
+    </div>
+
+    <hr>
     {% if entry.has_media %}
     <h2>Attachments</h2>
     Check to remove

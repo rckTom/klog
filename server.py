@@ -30,6 +30,7 @@ from pyklog.KitchenLog import Config, KitchenLog
 from locale import setlocale, LC_ALL
 
 from flask import Flask, render_template, request
+from werkzeug.utils import secure_filename
 
 setlocale(LC_ALL, 'de_DE.UTF-8')
 
@@ -39,6 +40,7 @@ cfg = Config(f_config, needs_email=False, sync=True)
 klog = KitchenLog(cfg.repo)
 app = Flask('klog')
 
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'eps', 'tiff'])
 
 class EntryForm(FlaskForm):
     begin = StringField('begin', validators=[DataRequired()])
@@ -79,6 +81,22 @@ APPENDIX: %s
 def home():
     return render_template('index.html')
 
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def attach_media(entry, media_list):
+    for f in media_list:
+        entry.attach_media(secure_filename(f.filename), f.read())
+
+def new_media(request):
+    if not request.files:
+        return False
+    image_list = request.files.getlist('images')
+    for f in image_list:
+        if not f.mimetype.startswith('image/') or not allowed_file(f.filename):
+            raise ValueError('Filetype of file %s is not supported' % f.filename)
+    return image_list
 
 @app.route('/modify', methods=['POST', 'GET'])
 def modify():
@@ -106,27 +124,28 @@ def modify():
 
     entry_form = EntryForm(request.form, csrf_enabled=False)
     if entry_form.validate():
-        entry_raw = entry_form.convert()
-
-        if 'remove' in request.form:
-            entry.remove()
-            klog.commit('Removed %s' % entry.shortlog)
-            cfg.update_trigger()
-            info = 'Entry successfully removed', 'success'
-            return render_template('list.html', info=info, content=klog.years_dict())
-        elif entry_raw == str(entry) and len(removals) == 0:
-            info = 'Nothing changed', 'warning'
-        else:
-            try:
+        try:
+            entry_raw = entry_form.convert()
+            entry.reload(entry_raw, True)
+            image_list = new_media(request)
+            if entry_raw == str(entry) and len(removals) == 0 and not image_list:
+                info = 'Nothing changed', 'warning'
+            elif 'remove' in request.form:
+                entry.remove()
+                klog.commit('Removed %s' % entry.shortlog)
+                cfg.update_trigger()
+                info = 'Entry successfully removed', 'success'
+                return render_template('list.html', info=info, content=klog.years_dict())
+            else:
                 for removal in removals:
                     entry.remove_media(removal)
-                entry.reload(entry_raw, True)
+                if image_list:
+                    attach_media(entry, image_list)
                 info = 'success', 'success'
                 klog.commit('Modified %s ' % entry.shortlog)
                 cfg.update_trigger()
-            except ValueError as e:
-                info = str(e), 'danger'
-
+        except ValueError as e:
+            info = str(e), 'danger'
     return render_template('modify.html', id=id, entry=entry, info=info)
 
 
@@ -145,6 +164,9 @@ def new():
         entry_raw = entry_form.convert()
         try:
             entry.reload(entry_raw, True)
+            image_list = new_media(request)
+            if image_list:
+                attach_media(entry, image_list)
             info = 'success', 'success'
             klog.commit('Modified %s ' % entry.shortlog)
             cfg.update_trigger()
