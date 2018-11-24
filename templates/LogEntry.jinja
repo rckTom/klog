@@ -1,24 +1,28 @@
 {% macro modify_entry(target, entry, label, allow_remove) -%}
 <form action="{{ target }}" method="post">
-    <label>Begin: </label>
-    <input name="begin" type="date" class="form-inline" value="{{ entry.begin_ymd }}">
-    <br>
+    <div class="form-group">
+        <label for="begin">Begin: </label>
+        <input name="begin" class="form-inline" type="date" value="{{ entry.begin_ymd }}">
+    </div>
 
-    <label>End: </label>
-    <input name="end" type="date" class="form-inline" value="{{ entry.end_ymd }}">
-    <br>
+    <div class="form-group">
+        <label for="end">End: </label>
+        <input name="end" type="date" class="form-inline" value="{{ entry.end_ymd }}">
+    </div>
 
-    <label>Topic: </label>
-    <input name="topic" type="text" class="form-inline" value="{{ entry.topic }}">
+    <div class="form-group">
+        <label for="topic">Topic: </label>
+        <input name="topic" type="text" class="form-inline" value="{{ entry.topic }}">
+    </div>
 
-    <br>
-    <label>Appendix: </label>
-    <input name="appendix" type="text" class="form-inline" value="{{ entry.appendix or 'None' }}">
+    <div class="form-group">
+        <label for="appendix">Appendix: </label>
+        <input name="appendix" type="text" class="form-inline" value="{{ entry.appendix or 'None' }}">
+    </div>
 
-    <br>
-<textarea name="content" class="form-control" rows="20">
-{{ entry.content }}
-</textarea>
+    <textarea name="content" class="form-control" rows="20">
+    {{ entry.content }}
+    </textarea>
     <br>
 
     {% if entry.has_media %}
